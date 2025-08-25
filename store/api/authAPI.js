@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 
-const BASE_URL = "http://localhost:8000/api/v1";
+const BASE_URL = "http://192.168.13.31:8000/api/v1";
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -53,13 +53,7 @@ const register = async (userData) => {
     
     return res.data;
   } catch (error) {
-    console.error("❌ Registration error details:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      url: error.config?.url,
-      network: error.code === 'NETWORK_ERROR' ? 'Network connection failed' : 'Other error'
-    });
+   console.log(error);
     throw error;
   }
 };

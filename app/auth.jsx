@@ -10,7 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { useDispatch, useSelector } from 'react-redux';
-import { registerUser, loginUser, clearError } from '../store/slices/authSlice';
+import authAPI from '../store/api/authAPI';
 import { useRouter } from "expo-router";
 
 const auth = () => {
@@ -32,18 +32,15 @@ const auth = () => {
   useEffect(() => {
     if (error) {
       Alert.alert("Error", error);
-      dispatch(clearError());
     }
   }, [error]);
 
   const handleSwitchMode = () => {
     setIsSignUp((prev) => !prev);
-    dispatch(clearError());
   };
 
   const handleAuth = async () => {
     if (isSignUp) {
-      // Registration validation
       if (!userName || !email || !password) {
         Alert.alert("Error", "Please fill in all fields");
         return;
@@ -59,11 +56,15 @@ const auth = () => {
         email, 
         password,
       };
-      
-      dispatch(registerUser(userData));
-      
+      try{
+        const response = await authAPI.register(userData);
+        console.log(response);
+      }
+      catch(err){
+        Alert.alert("Error", err.message);
+        throw err;
+      }
     } else {
-      // Login validation
       if (!email || !password) {
         Alert.alert("Error", "Please fill in all fields");
         return;
