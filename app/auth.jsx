@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -7,11 +9,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Alert,
 } from "react-native";
 import { useDispatch, useSelector } from 'react-redux';
 import authAPI from '../store/api/authAPI';
-import { useRouter } from "expo-router";
+import { clearError, login, setError, setLoading } from '../store/slices/authSlice';
 
 const auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -20,26 +21,24 @@ const auth = () => {
   const [password, setPassword] = useState("");
 
   const dispatch = useDispatch();
-  const { isLoading, error, isAuthenticated } = useSelector((state) => state.auth);
+  const { status, isLoading, error } = useSelector((state) => state.auth);
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (status) {
       router.replace("/(tabs)");
     }
-  }, [isAuthenticated]);
+  }, [status]);
 
-  useEffect(() => {
-    if (error) {
-      Alert.alert("Error", error);
-    }
-  }, [error]);
+  // Remove the error useEffect since we're handling errors in the try-catch blocks
 
   const handleSwitchMode = () => {
     setIsSignUp((prev) => !prev);
   };
 
   const handleAuth = async () => {
+    dispatch(clearError()); // Clear any previous errors
+    
     if (isSignUp) {
       if (!userName || !email || !password) {
         Alert.alert("Error", "Please fill in all fields");
@@ -56,13 +55,29 @@ const auth = () => {
         email, 
         password,
       };
+      
+      dispatch(setLoading(true));
       try{
         const response = await authAPI.register(userData);
-        console.log(response);
+        console.log("Registration successful:", response);
+        
+        // Dispatch login action after successful registration
+        const user = response.data?.user || response.data?.data?.user;
+        if (user) {
+          dispatch(login({ userData: user }));
+          Alert.alert("Success", "Account created successfully!");
+        } else {
+          dispatch(login({ userData: { userName, email } }));
+          Alert.alert("Success", "Account created successfully!");
+        }
       }
       catch(err){
-        Alert.alert("Error", err.message);
-        throw err;
+        console.error("Registration error:", err);
+        const errorMessage = err.response?.data?.message || err.message || "Registration failed";
+        dispatch(setError(errorMessage));
+        Alert.alert("Error", errorMessage);
+      } finally {
+        dispatch(setLoading(false));
       }
     } else {
       if (!email || !password) {
@@ -76,7 +91,36 @@ const auth = () => {
       }
       
       const credentials = { email, password };
-      dispatch(loginUser(credentials));
+      
+      dispatch(setLoading(true));
+      try{
+        const response = await authAPI.login(credentials);
+        console.log("Login successful:", response);
+        console.log("Response structure:", JSON.stringify(response, null, 2));
+        
+        // Check multiple possible response structures
+        const userData = response.data?.user || response.user || response.data?.data?.user;
+        console.log("User data:", userData);
+        
+        if (userData) {
+          dispatch(login({ userData }));
+          console.log("Dispatch completed");
+          Alert.alert("Success", "Logged in successfully!");
+        } else {
+          // Even if no user data, try to dispatch and redirect
+          dispatch(login({ userData: { email } }));
+          console.log("Dispatch completed with fallback data");
+          Alert.alert("Success", "Logged in successfully!");
+        }
+      }
+      catch(err){
+        console.error("Login error:", err);
+        const errorMessage = err.response?.data?.message || err.message || "Login failed";
+        dispatch(setError(errorMessage));
+        Alert.alert("Error", errorMessage);
+      } finally {
+        dispatch(setLoading(false));
+      }
     }
   };
 
@@ -137,16 +181,19 @@ const auth = () => {
 
         {/* Error Message */}
         {error && (
-          <Text className="text-red-500 text-center mb-4">{error}</Text>
+          <View className="mb-4 p-3 bg-red-100 rounded-lg">
+            <Text className="text-red-600 text-center">{error}</Text>
+          </View>
         )}
 
         {/* Login Button */}
         <TouchableOpacity
           onPress={handleAuth}
-          className="bg-green-500 py-4 rounded-lg mb-4"
+          disabled={isLoading}
+          className={`py-4 rounded-lg mb-4 ${isLoading ? 'bg-gray-400' : 'bg-green-500'}`}
         >
           <Text className="text-white text-center font-semibold text-lg">
-            {isSignUp ? "Sign Up" : "Login"}
+            {isLoading ? 'Loading...' : (isSignUp ? "Sign Up" : "Login")}
           </Text>
         </TouchableOpacity>
 

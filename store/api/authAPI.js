@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 
-const BASE_URL = "http://192.168.13.31:8000/api/v1";
+const BASE_URL = "http://192.168.1.2:8000/api/v1";
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -61,8 +61,6 @@ const register = async (userData) => {
 const login = async (credentials) => {
   try {
     const res = await api.post("/users/login", credentials);
-    
-    // Store tokens
     if (res.data?.data?.accessToken && res.data?.data?.refreshToken) {
       await storeTokens(res.data.data.accessToken, res.data.data.refreshToken);
     }
