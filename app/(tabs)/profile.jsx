@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import {
     Alert,
     SafeAreaView,
@@ -15,6 +16,13 @@ const profile = () => {
   const router = useRouter();
   const { userData, status } = useSelector((state) => state.auth);
 
+  // Use useEffect to handle redirect instead of doing it in render
+  useEffect(() => {
+    if (!status) {
+      router.replace('/auth');
+    }
+  }, [status, router]);
+
   const handleLogout = async () => {
     Alert.alert(
       "Logout",
@@ -29,13 +37,17 @@ const profile = () => {
           style: "destructive",
           onPress: async () => {
             try {
-         
+              // Call API logout to clear server-side session
               await authAPI.logout();
+              
+              // Dispatch logout action to clear Redux state
               dispatch(logout());
               
+              // Navigate to auth screen
               router.replace('/auth');
             } catch (error) {
               console.error('Logout error:', error);
+              // Even if API fails, clear local state
               dispatch(logout());
               router.replace('/auth');
             }
@@ -45,9 +57,8 @@ const profile = () => {
     );
   };
 
-  // If not authenticated, redirect to auth
+  // Show loading or nothing while redirecting
   if (!status) {
-    router.replace('/auth');
     return null;
   }
 

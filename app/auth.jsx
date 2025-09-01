@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+
 import {
   Alert,
   Image,
@@ -30,14 +31,13 @@ const auth = () => {
     }
   }, [status]);
 
-  // Remove the error useEffect since we're handling errors in the try-catch blocks
 
   const handleSwitchMode = () => {
     setIsSignUp((prev) => !prev);
   };
 
   const handleAuth = async () => {
-    dispatch(clearError()); // Clear any previous errors
+    dispatch(clearError()); 
     
     if (isSignUp) {
       if (!userName || !email || !password) {
@@ -61,7 +61,7 @@ const auth = () => {
         const response = await authAPI.register(userData);
         console.log("Registration successful:", response);
         
-        // Dispatch login action after successful registration
+
         const user = response.data?.user || response.data?.data?.user;
         if (user) {
           dispatch(login({ userData: user }));
@@ -98,7 +98,7 @@ const auth = () => {
         console.log("Login successful:", response);
         console.log("Response structure:", JSON.stringify(response, null, 2));
         
-        // Check multiple possible response structures
+
         const userData = response.data?.user || response.user || response.data?.data?.user;
         console.log("User data:", userData);
         
@@ -107,7 +107,7 @@ const auth = () => {
           console.log("Dispatch completed");
           Alert.alert("Success", "Logged in successfully!");
         } else {
-          // Even if no user data, try to dispatch and redirect
+    
           dispatch(login({ userData: { email } }));
           console.log("Dispatch completed with fallback data");
           Alert.alert("Success", "Logged in successfully!");

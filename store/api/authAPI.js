@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 
-const BASE_URL = "http://192.168.1.2:8000/api/v1";
+const BASE_URL = "http://192.168.13.31:8000/api/v1";
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -39,11 +39,11 @@ const clearTokens = async () => {
   }
 };
 
-// API functions
+
 const register = async (userData) => {
   try {
-    console.log("🚀 Attempting registration with data:", userData);
-    console.log("🌐 API Base URL:", BASE_URL);
+    console.log("Attempting registration with data:", userData);
+    console.log("API Base URL:", BASE_URL);
     
     const res = await api.post("/users/register", userData);
     console.log("✅ Registration successful:", res.data);
@@ -74,18 +74,26 @@ const login = async (credentials) => {
 
 const logout = async () => {
   try {
-    const res = await api.post("/users/logout");
+    const { accessToken } = await getTokens();
     
-    // Clear stored tokens
-    await clearTokens();
-    
-    return res.data;
+    if (accessToken) {
+      const res = await api.post("/users/logout", {}, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      await clearTokens();
+      
+      return res.data;
+    } else {
+      await clearTokens();
+      return { message: "Logged out locally" };
+    }
   } catch (error) {
     console.error("Logout error:", error.response?.data || error.message);
-    // Clear tokens even if logout request fails
     await clearTokens();
     throw error;
   }
 };
-
 export default { api, register, login, logout, storeTokens, getTokens, clearTokens };
