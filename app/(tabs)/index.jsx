@@ -1,19 +1,37 @@
-import { Droplets, PlusCircleIcon, Wallet, Zap } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { Bell, Droplets, PlusCircleIcon, Wallet, Zap } from "lucide-react-native";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Index() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  
+  const handleNotificationPress = () => {
+    router.push("/reminders");
+  };
+  
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView>
-        <View className="p-4">
-          {/* Header */}
-          <View className="mb-6">
-            <Text className="text-2xl font-bold text-gray-900 text-center">Dashboard</Text>
+    <View className="flex-1 bg-gray-100">
+      {/* Header */}
+      <View className="px-4 py-4 bg-white" style={{ paddingTop: insets.top + 12 }}>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1">
+            <Text className="text-[26px] pl-2 font-bold text-gray-900 text-left">Smart Rent</Text>
           </View>
+          <TouchableOpacity 
+            onPress={handleNotificationPress}
+            className="w-10 h-10 items-center justify-center  rounded-full shadow-sm"
+          >
+            <Bell size={20} color="#374151" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <View className="p-4">
           {/* Action Cards */}
-          <View className="flex-row space-x-4 mb-8">
+          <View className="flex-row space-x-4 mb-4 gap-2">
             <TouchableOpacity className="flex-1 bg-white rounded-2xl p-6 items-center border border-blue-200">
               <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mb-3">
                 <Wallet size={24} color="#3B82F6" />
@@ -104,6 +122,6 @@ export default function Index() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

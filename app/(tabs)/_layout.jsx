@@ -1,6 +1,5 @@
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
-import { Home,CircleUserRound } from "lucide-react-native";
+import { BarChart3, CircleUserRound, Home, Receipt, Users } from "lucide-react-native";
 
 export default function RootLayout() {
   return (
@@ -11,6 +10,33 @@ export default function RootLayout() {
           title: "Home",
           tabBarIcon: ({ color }) => (
             <Home color={color} size={20} />
+          )
+        }}
+      />
+      <Tabs.Screen
+        name="flatmates"
+        options={{ 
+          title: "Flatmates",
+          tabBarIcon: ({ color }) => (
+            <Users color={color} size={20} />
+          )
+        }}
+      />
+      <Tabs.Screen
+        name="bills"
+        options={{ 
+          title: "Bills",
+          tabBarIcon: ({ color }) => (
+            <Receipt color={color} size={20} />
+          )
+        }}
+      />
+      <Tabs.Screen
+        name="reports"
+        options={{ 
+          title: "Reports",
+          tabBarIcon: ({ color }) => (
+            <BarChart3 color={color} size={20} />
           )
         }}
       />
