@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 
-const BASE_URL = "http://192.168.13.31:8000/api/v1";
+const BASE_URL = "http://10.172.17.31:8000/api/v1";
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -72,6 +72,27 @@ const login = async (credentials) => {
   }
 };
 
+const getCurrentUser = async () => {
+  try {
+    const { accessToken } = await getTokens();
+    
+    if (!accessToken) {
+      throw new Error('No access token available');
+    }
+    
+    const res = await api.get("/users/current-user", {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Get current user error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
 const logout = async () => {
   try {
     const { accessToken } = await getTokens();
@@ -96,4 +117,5 @@ const logout = async () => {
     throw error;
   }
 };
-export default { api, register, login, logout, storeTokens, getTokens, clearTokens };
+
+export default { api, register, login, logout, getCurrentUser, storeTokens, getTokens, clearTokens };

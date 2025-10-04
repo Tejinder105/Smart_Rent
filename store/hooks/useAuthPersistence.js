@@ -14,14 +14,17 @@ export const useAuthPersistence = () => {
         const tokens = await authAPI.getTokens();
         
         if (tokens.accessToken) {
-          // You could validate the token here by calling a /me endpoint
-          // For now, we'll just assume if token exists, user is logged in
-          dispatch(login({ 
-            userData: { 
-              // You could store more user data in AsyncStorage if needed
-              email: 'stored@example.com' // Placeholder
-            } 
-          }));
+          // Try to get current user data from backend
+          try {
+            const userResponse = await authAPI.getCurrentUser();
+            const userData = userResponse.data?.data || userResponse.data;
+            
+            dispatch(login({ userData }));
+          } catch (error) {
+            console.error('Failed to get current user:', error);
+            // If getting user fails, clear tokens and don't auto-login
+            await authAPI.clearTokens();
+          }
         }
       } catch (error) {
         console.error('Auth persistence check failed:', error);
