@@ -1,18 +1,18 @@
 import { useRouter } from 'expo-router';
 import {
-    Calculator,
-    CheckCircle,
-    ChevronLeft
+  Calculator,
+  CheckCircle,
+  ChevronLeft
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -25,6 +25,7 @@ const splitExpense = () => {
   
   const { availableFlatmates, loading, error } = useSelector((state) => state.expense);
   const { userData } = useSelector((state) => state.auth);
+  const currentUser = userData;
   
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -36,6 +37,17 @@ const splitExpense = () => {
   useEffect(() => {
     dispatch(fetchAvailableFlatmates());
   }, [dispatch]);
+
+  // Debug: Log available flatmates when they load
+  useEffect(() => {
+    if (availableFlatmates && availableFlatmates.length > 0) {
+      console.log('👥 Available flatmates loaded:', availableFlatmates.map(f => ({
+        name: f.name,
+        _id: f._id,
+        isCurrentUser: f.isCurrentUser
+      })));
+    }
+  }, [availableFlatmates]);
 
   // Expense categories
   const categories = [
@@ -91,9 +103,17 @@ const splitExpense = () => {
 
     const totalAmount = parseFloat(amount);
     const splitAmount = calculateSplit();
+    
+    // Filter participants - now all use _id directly since backend was fixed
     const participants = availableFlatmates.filter(f => 
-      selectedFlatmates.includes(f._id || f.userId?._id)
+      selectedFlatmates.includes(f._id?.toString?.() || f._id)
     );
+
+    console.log('🎯 Creating expense with participants:', participants.map(p => ({
+      name: p.name,
+      _id: p._id,
+      isCurrentUser: p.isCurrentUser
+    })));
 
     Alert.alert(
       'Confirm Expense',
@@ -106,16 +126,32 @@ const splitExpense = () => {
           onPress: async () => {
             setCreating(true);
             try {
+              // Build participants array - simpler now with consistent _id
+              const participantsData = participants.map(p => {
+                const userId = p._id;
+                const userName = p.name;
+                
+                console.log('  → Participant:', userName, '| userId:', userId);
+                
+                if (!userId) {
+                  console.error('⚠️ WARNING: No userId found for participant:', userName);
+                }
+                
+                return {
+                  userId: userId,
+                  name: userName
+                };
+              });
+
+              console.log('📤 Sending expense with participants:', participantsData);
+
               const expenseData = {
                 title: description,
                 description: description,
                 totalAmount: totalAmount,
                 category: selectedCategory,
                 splitMethod: splitMethod,
-                participants: participants.map(p => ({
-                  userId: p._id || p.userId?._id,
-                  name: p.name || p.userId?.userName
-                }))
+                participants: participantsData
               };
               
               await dispatch(createSplitExpense(expenseData)).unwrap();
@@ -137,6 +173,7 @@ const splitExpense = () => {
                 ]
               );
             } catch (error) {
+              console.error('❌ Error creating expense:', error);
               Alert.alert('Error', error || 'Failed to create expense');
             } finally {
               setCreating(false);
@@ -165,10 +202,10 @@ const splitExpense = () => {
   );
 
   const FlatmateCard = ({ flatmate, isSelected, onToggle }) => {
-    const flatmateId = flatmate._id || flatmate.userId?._id;
-    const flatmateName = flatmate.name || flatmate.userId?.userName;
-    const isCurrentUser = flatmate.isCurrentUser || 
-      (userData && (flatmate.userId?._id === userData._id || flatmate._id === userData._id));
+    // Now all flatmates use _id directly
+    const flatmateId = flatmate._id;
+    const flatmateName = flatmate.name;
+    const isCurrentUser = flatmate.isCurrentUser;
     
     return (
       <TouchableOpacity

@@ -98,6 +98,18 @@ export const fetchExpenseStats = createAsyncThunk(
   }
 );
 
+export const fetchFlatExpenses = createAsyncThunk(
+  'expense/fetchFlatExpenses',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await expenseAPI.getFlatExpenses(params);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch flat expenses');
+    }
+  }
+);
+
 export const fetchAvailableFlatmates = createAsyncThunk(
   'expense/fetchAvailableFlatmates',
   async (_, { rejectWithValue }) => {
@@ -245,6 +257,21 @@ const expenseSlice = createSlice({
       // Fetch expense stats
       .addCase(fetchExpenseStats.fulfilled, (state, action) => {
         state.stats = action.payload;
+      })
+
+      // Fetch flat expenses
+      .addCase(fetchFlatExpenses.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchFlatExpenses.fulfilled, (state, action) => {
+        state.loading = false;
+        state.expenses = action.payload;
+        state.lastFetch = Date.now();
+      })
+      .addCase(fetchFlatExpenses.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
 
       // Fetch available flatmates

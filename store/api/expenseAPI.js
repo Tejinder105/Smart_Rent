@@ -1,13 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 
-const BASE_URL = "http://10.172.17.31:8000/api/v1";
+const BASE_URL = "http://192.168.59.31:8000/api/v1";
 
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 10000, // 10 second timeout
 });
 
 // Add request interceptor to include auth token
@@ -24,6 +25,24 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - clear storage
+      try {
+        await AsyncStorage.removeItem('accessToken');
+        await AsyncStorage.removeItem('refreshToken');
+        console.log('⚠️ Session expired. Please login again.');
+      } catch (err) {
+        console.error('Error clearing tokens:', err);
+      }
+    }
     return Promise.reject(error);
   }
 );
@@ -59,6 +78,17 @@ const expenseAPI = {
       return res.data;
     } catch (error) {
       console.error("Get participant expenses error:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Get all flat expenses (expenses involving any flat member)
+  getFlatExpenses: async (params = {}) => {
+    try {
+      const res = await api.get("/expenses/flat", { params });
+      return res.data;
+    } catch (error) {
+      console.error("Get flat expenses error:", error.response?.data || error.message);
       throw error;
     }
   },

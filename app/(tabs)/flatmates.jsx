@@ -1,9 +1,10 @@
 import { useRouter } from "expo-router";
-import { Bell, DollarSign, Home, Key, Share, UserPlus, Users } from "lucide-react-native";
+import { Bell, Home, Key, UserPlus, Users } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
+import { fetchExpenseStats, fetchFlatExpenses } from "../../store/slices/expenseSlice";
 import { fetchFlatMembers, fetchUserFlat } from "../../store/slices/flatSlice";
 
 const flatmates = () => {
@@ -11,8 +12,8 @@ const flatmates = () => {
   const router = useRouter();
   const dispatch = useDispatch();
   
-  const { flatmates: flatmatesData, loading: flatmateLoading, error: flatmateError } = useSelector((state) => state.flatmate);
   const { currentFlat, flatMembers, loading: flatLoading, userRole } = useSelector((state) => state.flat);
+  const { expenses, stats, loading: expenseLoading } = useSelector((state) => state.expense);
   
   const [showCreateJoinOptions, setShowCreateJoinOptions] = useState(false);
   
@@ -23,10 +24,22 @@ const flatmates = () => {
   useEffect(() => {
     if (currentFlat) {
       dispatch(fetchFlatMembers(currentFlat._id));
+      dispatch(fetchFlatExpenses({ status: 'active' }));
+      dispatch(fetchExpenseStats());
     } else {
       setShowCreateJoinOptions(true);
     }
   }, [currentFlat, dispatch]);
+
+  // Debug: Log expenses when they change
+  useEffect(() => {
+    if (expenses && expenses.length > 0) {
+      console.log('📊 Flatmates - Total expenses loaded:', expenses.length);
+      expenses.forEach(exp => {
+        console.log('  - Expense:', exp.title, '| Participants:', exp.participants?.length);
+      });
+    }
+  }, [expenses]);
   
   const handleNotificationPress = () => {
     router.push("/reminders");
@@ -46,15 +59,75 @@ const flatmates = () => {
     router.push("/joinFlat");
   };
 
-  const handleShareExpense = (flatmateId) => {
-    // Navigate to split expense screen
-    router.push("/splitExpense");
+  // Calculate total expenses for the flat from real expense data
+  const calculateTotalFlatExpenses = () => {
+    if (!expenses || expenses.length === 0) return 0;
+    return expenses.reduce((total, expense) => {
+      return total + (expense.totalAmount || 0);
+    }, 0);
   };
 
-  const handleAssignPayment = (flatmateId) => {
-    // Handle assign payment functionality
-    console.log("Assign payment to flatmate:", flatmateId);
+  // Calculate total paid amount across all expenses
+  const calculateTotalPaidAmount = () => {
+    if (!expenses || expenses.length === 0) return 0;
+    return expenses.reduce((total, expense) => {
+      const paidAmount = expense.participants?.reduce((sum, p) => {
+        return sum + (p.isPaid ? p.amount : 0);
+      }, 0) || 0;
+      return total + paidAmount;
+    }, 0);
   };
+
+  // Calculate individual member's contribution from expenses
+  const calculateMemberContribution = (memberId) => {
+    console.log('\n🔍 Calculating contribution for member ID:', memberId);
+    
+    if (!expenses || expenses.length === 0) {
+      console.log('⚠️ No expenses available');
+      return 0;
+    }
+    
+    console.log('📊 Total expenses to check:', expenses.length);
+    
+    let totalContribution = 0;
+    let participationCount = 0;
+    
+    expenses.forEach((expense, index) => {
+      console.log(`\n  Expense ${index + 1}: "${expense.title}"`);
+      console.log('    Participants:', expense.participants?.length || 0);
+      
+      if (expense.participants && expense.participants.length > 0) {
+        expense.participants.forEach(p => {
+          const participantId = p.userId?._id || p.userId;
+          console.log('      - Participant ID:', participantId, '| Name:', p.name || p.userId?.userName);
+        });
+      }
+      
+      // Check all participants in each expense
+      const participant = expense.participants?.find(p => {
+        const participantId = p.userId?._id || p.userId;
+        const match = participantId?.toString() === memberId?.toString();
+        if (match) {
+          console.log('      ✅ MATCH FOUND!');
+        }
+        return match;
+      });
+      
+      if (participant) {
+        participationCount++;
+        totalContribution += participant.amount || 0;
+        console.log(`    ✓ Member participated: ₹${participant.amount}`);
+      } else {
+        console.log('    ✗ Member NOT a participant');
+      }
+    });
+    
+    console.log(`\n💰 FINAL Total for member: ₹${totalContribution} (${participationCount} expenses)\n`);
+    return totalContribution;
+  };
+
+  const totalFlatExpenses = calculateTotalFlatExpenses();
+  const totalPaidAmount = calculateTotalPaidAmount();
 
   const CreateJoinOptions = () => (
     <View className="flex-1 justify-center p-6">
@@ -106,6 +179,9 @@ const flatmates = () => {
         <View className="flex-1">
           <Text className="text-lg font-bold text-gray-900">{currentFlat?.name}</Text>
           <Text className="text-sm text-gray-500">Join Code: {currentFlat?.joinCode}</Text>
+          {currentFlat?.rent && (
+            <Text className="text-sm font-semibold text-green-600 mt-1">Monthly Rent: ₹{currentFlat.rent}</Text>
+          )}
         </View>
         <View className={`px-3 py-1 rounded-full ${
           userRole === 'admin' ? 'bg-green-100' : 'bg-blue-100'
@@ -120,16 +196,16 @@ const flatmates = () => {
       
       <View className="flex-row justify-between">
         <View className="items-center">
-          <Text className="text-2xl font-bold text-gray-900">{currentFlat?.stats?.totalMembers || 0}</Text>
+          <Text className="text-2xl font-bold text-gray-900">{flatMembers?.length || 0}</Text>
           <Text className="text-xs text-gray-500">Members</Text>
         </View>
         <View className="items-center">
-          <Text className="text-2xl font-bold text-gray-900">₹{currentFlat?.stats?.totalExpenses || 0}</Text>
+          <Text className="text-2xl font-bold text-gray-900">₹{totalFlatExpenses.toFixed(0)}</Text>
           <Text className="text-xs text-gray-500">Total Expenses</Text>
         </View>
         <View className="items-center">
-          <Text className="text-2xl font-bold text-gray-900">₹{currentFlat?.stats?.totalPayments || 0}</Text>
-          <Text className="text-xs text-gray-500">Total Payments</Text>
+          <Text className="text-2xl font-bold text-gray-900">₹{totalPaidAmount.toFixed(0)}</Text>
+          <Text className="text-xs text-gray-500">Total Paid</Text>
         </View>
       </View>
     </View>
@@ -187,30 +263,11 @@ const flatmates = () => {
         </View>
   
         {/* Expense Contribution */}
-        <View className="mb-4 flex-row items-center justify-between px-2">
-          <Text className="text-sm text-gray-500 mb-1">Expense Contribution</Text>
+        <View className="flex-row items-center justify-between px-2">
+          <Text className="text-sm text-gray-500">Total Expenses</Text>
           <Text className="text-xl font-bold text-gray-900">
-            ₹{member.monthlyContribution || 0}/month
+            ₹{calculateMemberContribution(member._id).toFixed(2)}
           </Text>
-        </View>
-  
-        {/* Action Buttons */}
-        <View className="flex-row space-x-3 gap-2">
-          <TouchableOpacity
-            onPress={() => handleShareExpense(member._id)}
-            className="flex-1 flex-row items-center justify-center bg-green-50 border border-green-200 rounded-lg py-3"
-          >
-            <Share size={16} color="#16a34a" />
-            <Text className="text-green-600 font-medium ml-2">Share Expense</Text>
-          </TouchableOpacity>
-  
-          <TouchableOpacity
-            onPress={() => handleAssignPayment(member._id)}
-            className="flex-1 flex-row items-center justify-center bg-blue-50 border border-blue-200 rounded-lg py-3"
-          >
-            <DollarSign size={16} color="#2563eb" />
-            <Text className="text-blue-600 font-medium ml-2">Assign Payment</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -272,9 +329,12 @@ const flatmates = () => {
           {/* Flatmates List */}
           <View className="pb-6">
             {flatMembers && flatMembers.length > 0 ? (
-              flatMembers.map((member) => (
-                <FlatmateCard key={member._id} member={member} />
-              ))
+              <>
+                {console.log('👥 Rendering flatmates:', flatMembers.map(m => ({ id: m._id, name: m.name })))}
+                {flatMembers.map((member) => (
+                  <FlatmateCard key={member._id} member={member} />
+                ))}
+              </>
             ) : (
               <View className="bg-blue-50 border border-blue-200 rounded-xl p-6 mx-4 items-center">
                 <Text className="text-blue-800 text-lg font-semibold">No Members Found</Text>

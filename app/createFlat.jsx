@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -24,18 +24,7 @@ const CreateFlat = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    address: {
-      street: '',
-      city: '',
-      state: '',
-      zipCode: ''
-    },
-    settings: {
-      currency: 'INR',
-      timezone: 'Asia/Kolkata',
-      autoSplitExpenses: true,
-      requireApprovalForNewMembers: false
-    }
+    rent: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -47,6 +36,12 @@ const CreateFlat = () => {
       newErrors.name = 'Flat name is required';
     } else if (formData.name.trim().length < 3) {
       newErrors.name = 'Flat name must be at least 3 characters';
+    }
+
+    if (!formData.rent || formData.rent.trim() === '') {
+      newErrors.rent = 'Monthly rent is required';
+    } else if (isNaN(formData.rent) || Number(formData.rent) <= 0) {
+      newErrors.rent = 'Please enter a valid rent amount';
     }
 
     setErrors(newErrors);
@@ -65,7 +60,7 @@ const CreateFlat = () => {
         const createdFlat = resultAction.payload;
         Alert.alert(
           'Flat Created Successfully! 🎉',
-          `Your flat "${createdFlat.name}" has been created with join code: ${createdFlat.joinCode}`,
+          `Your flat "${createdFlat.name}" has been created.\n\nMonthly Rent: ₹${createdFlat.rent}\nJoin Code: ${createdFlat.joinCode}\n\nShare the join code with your flatmates to invite them!`,
           [
             {
               text: 'Continue',
@@ -82,18 +77,7 @@ const CreateFlat = () => {
   };
 
   const updateFormData = (field, value) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }));
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear error for this field when user starts typing
     if (errors[field]) {
@@ -160,103 +144,27 @@ const CreateFlat = () => {
               )}
             </View>
 
-            {/* Address Section */}
+            {/* Monthly Rent Field */}
             <View className="mb-6">
-              <Text className="text-lg font-bold text-gray-900 mb-4">Address (Optional)</Text>
-              
-              <View className="space-y-4">
-                <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Street Address</Text>
-                  <TextInput
-                    value={formData.address.street}
-                    onChangeText={(value) => updateFormData('address.street', value)}
-                    placeholder="123 Main Street, Apartment 2B"
-                    className="bg-white px-4 py-3 rounded-xl border border-gray-200 text-gray-900"
-                    placeholderTextColor="#9CA3AF"
-                  />
+              <Text className="text-sm font-medium text-gray-700 mb-2">Monthly Rent *</Text>
+              <View className="flex-row items-center">
+                <View className="bg-gray-100 px-4 py-3 rounded-l-xl border border-r-0 border-gray-200">
+                  <Text className="text-gray-700 font-semibold">₹</Text>
                 </View>
-
-                <View className="flex-row space-x-3">
-                  <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-2">City</Text>
-                    <TextInput
-                      value={formData.address.city}
-                      onChangeText={(value) => updateFormData('address.city', value)}
-                      placeholder="Mumbai"
-                      className="bg-white px-4 py-3 rounded-xl border border-gray-200 text-gray-900"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  </View>
-
-                  <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-2">State</Text>
-                    <TextInput
-                      value={formData.address.state}
-                      onChangeText={(value) => updateFormData('address.state', value)}
-                      placeholder="Maharashtra"
-                      className="bg-white px-4 py-3 rounded-xl border border-gray-200 text-gray-900"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  </View>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Pin Code</Text>
-                  <TextInput
-                    value={formData.address.zipCode}
-                    onChangeText={(value) => updateFormData('address.zipCode', value)}
-                    placeholder="400001"
-                    keyboardType="numeric"
-                    className="bg-white px-4 py-3 rounded-xl border border-gray-200 text-gray-900"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
+                <TextInput
+                  value={formData.rent}
+                  onChangeText={(value) => updateFormData('rent', value)}
+                  placeholder="Enter monthly rent amount"
+                  keyboardType="numeric"
+                  className={`flex-1 bg-white px-4 py-3 rounded-r-xl border ${
+                    errors.rent ? 'border-red-300' : 'border-gray-200'
+                  } text-gray-900`}
+                  placeholderTextColor="#9CA3AF"
+                />
               </View>
-            </View>
-
-            {/* Settings Section */}
-            <View className="mb-6">
-              <Text className="text-lg font-bold text-gray-900 mb-4">Flat Settings</Text>
-              
-              <View className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <View className="p-4 border-b border-gray-100">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1">
-                      <Text className="font-semibold text-gray-900">Auto Split Expenses</Text>
-                      <Text className="text-sm text-gray-500">Automatically split new expenses equally</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => updateFormData('settings.autoSplitExpenses', !formData.settings.autoSplitExpenses)}
-                      className={`w-12 h-6 rounded-full ${
-                        formData.settings.autoSplitExpenses ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <View className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                        formData.settings.autoSplitExpenses ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} style={{ marginTop: 2 }} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View className="p-4">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1">
-                      <Text className="font-semibold text-gray-900">Require Approval</Text>
-                      <Text className="text-sm text-gray-500">New members need admin approval</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => updateFormData('settings.requireApprovalForNewMembers', !formData.settings.requireApprovalForNewMembers)}
-                      className={`w-12 h-6 rounded-full ${
-                        formData.settings.requireApprovalForNewMembers ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <View className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                        formData.settings.requireApprovalForNewMembers ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} style={{ marginTop: 2 }} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
+              {errors.rent && (
+                <Text className="text-red-500 text-xs ml-2 mt-1">{errors.rent}</Text>
+              )}
             </View>
 
             {/* Info Box */}
@@ -268,7 +176,7 @@ const CreateFlat = () => {
                   <Text className="text-green-700 text-xs mt-1">
                     • You'll become the flat admin{'\n'}
                     • A unique join code will be generated{'\n'}
-                    • You can invite flatmates using SMS or share the join code{'\n'}
+                    • Share the join code with your flatmates to join{'\n'}
                     • Start managing expenses and payments
                   </Text>
                 </View>

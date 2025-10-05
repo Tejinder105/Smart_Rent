@@ -32,6 +32,24 @@ api.interceptors.request.use(
   }
 );
 
+// Add response interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - clear storage
+      try {
+        await AsyncStorage.removeItem('accessToken');
+        await AsyncStorage.removeItem('refreshToken');
+        console.log('⚠️ Session expired. Please login again.');
+      } catch (err) {
+        console.error('Error clearing tokens:', err);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Flat API functions
 const flatAPI = {
   // Create a new flat
