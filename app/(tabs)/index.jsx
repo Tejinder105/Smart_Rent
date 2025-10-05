@@ -10,6 +10,14 @@ export default function Index() {
   const handleNotificationPress = () => {
     router.push("/reminders");
   };
+
+  const handlePayDues = () => {
+    router.push("/payDues");
+  };
+
+  const handleSplitExpense = () => {
+    router.push("/splitExpense");
+  };
   
   return (
     <View className="flex-1 bg-gray-100">
@@ -32,18 +40,24 @@ export default function Index() {
         <View className="p-4">
           {/* Action Cards */}
           <View className="flex-row space-x-4 mb-4 gap-2">
-            <TouchableOpacity className="flex-1 bg-white rounded-2xl p-6 items-center border border-blue-200">
+            <TouchableOpacity 
+              onPress={handlePayDues}
+              className="flex-1 bg-white rounded-2xl p-6 items-center border border-blue-200"
+            >
               <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mb-3">
                 <Wallet size={24} color="#3B82F6" />
               </View>
-              <Text className="text-blue-600 font-semibold">Make Payment</Text>
+              <Text className="text-blue-600 font-semibold">Pay Dues</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity className="flex-1 bg-white rounded-2xl p-6 items-center border border-blue-200">
+            <TouchableOpacity 
+              onPress={handleSplitExpense}
+              className="flex-1 bg-white rounded-2xl p-6 items-center border border-blue-200"
+            >
               <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mb-3">
                 <PlusCircleIcon size={24} color="#3B82F6" />
               </View>
-              <Text className="text-blue-600 font-semibold">Add Expense</Text>
+              <Text className="text-blue-600 font-semibold">Split Expense</Text>
             </TouchableOpacity>
           </View>
 

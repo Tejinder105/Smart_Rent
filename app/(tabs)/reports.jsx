@@ -100,7 +100,7 @@ const reports = () => {
     <View className="mb-4">
       <View className="flex-row items-center justify-between mb-2">
         <Text className="text-gray-700 font-medium">{flatmate.name}</Text>
-        <Text className="text-gray-900 font-semibold">${flatmate.amount}</Text>
+        <Text className="text-gray-900 font-semibold">₹{flatmate.amount}</Text>
       </View>
       <View className="bg-gray-200 rounded-full h-3">
         <View 
@@ -205,17 +205,17 @@ const reports = () => {
             <View className="space-y-4">
               <View className="flex-row justify-between">
                 <Text className="text-gray-600">Total Expenses</Text>
-                <Text className="font-bold text-gray-900">$2,620.00</Text>
+                <Text className="font-bold text-gray-900">₹2,620.00</Text>
               </View>
               
               <View className="flex-row mb-2 justify-between">
                 <Text className="text-gray-600">Average per Person</Text>
-                <Text className="font-semibold text-gray-900">$655.00</Text>
+                <Text className="font-semibold text-gray-900">₹655.00</Text>
               </View>
               
               <View className="flex-row justify-between border-t border-gray-200 pt-2">
                 <Text className="font-semibold text-gray-900">Highest Spender</Text>
-                <Text className="font-bold text-green-600">Alice ($850)</Text>
+                <Text className="font-bold text-green-600">Alice (₹850)</Text>
               </View>
             </View>
           </View>

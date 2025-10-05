@@ -2,11 +2,11 @@ import { useRouter } from 'expo-router';
 import { Bell, Calendar, ChevronRight, Edit, HelpCircle, LogOut, Mail, Settings, Shield, User } from 'lucide-react-native';
 import { useEffect } from 'react';
 import {
-  Alert,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -145,7 +145,7 @@ const profile = () => {
                 <Text className="text-gray-500 text-xs">Payments</Text>
               </View>
               <View className="items-center">
-                <Text className="text-2xl font-bold text-gray-900">$2.4k</Text>
+                <Text className="text-2xl font-bold text-gray-900">₹2.4k</Text>
                 <Text className="text-gray-500 text-xs">Total Spent</Text>
               </View>
             </View>

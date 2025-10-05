@@ -44,6 +44,11 @@ function AppLayout() {
       <Stack.Screen name="auth" options={{ headerShown: false }} />
       <Stack.Screen name="reminders" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="payDues" options={{ headerShown: false }} />
+      <Stack.Screen name="splitExpense" options={{ headerShown: false }} />
+      <Stack.Screen name="addFlatmate" options={{ headerShown: false }} />
+      <Stack.Screen name="createFlat" options={{ headerShown: false }} />
+      <Stack.Screen name="joinFlat" options={{ headerShown: false }} />
     </Stack>
   );
 }
