@@ -54,25 +54,38 @@ const CreateFlat = () => {
     }
 
     try {
+      console.log('📤 Submitting flat creation:', formData);
       const resultAction = await dispatch(createFlat(formData));
+      
+      console.log('📥 Create flat result:', resultAction);
       
       if (createFlat.fulfilled.match(resultAction)) {
         const createdFlat = resultAction.payload;
+        console.log('✅ Flat created:', createdFlat);
+        
         Alert.alert(
           'Flat Created Successfully! 🎉',
           `Your flat "${createdFlat.name}" has been created.\n\nMonthly Rent: ₹${createdFlat.rent}\nJoin Code: ${createdFlat.joinCode}\n\nShare the join code with your flatmates to invite them!`,
           [
             {
-              text: 'Continue',
-              onPress: () => router.replace('/(tabs)/flatmates')
+              text: 'Add Flatmates',
+              onPress: () => router.replace('/addFlatmate')
+            },
+            {
+              text: 'Continue to Home',
+              onPress: () => router.replace('/(tabs)'),
+              style: 'cancel'
             }
           ]
         );
       } else {
-        Alert.alert('Error', resultAction.payload || 'Failed to create flat');
+        console.error('❌ Create flat failed:', resultAction);
+        const errorMessage = resultAction.payload || resultAction.error?.message || 'Failed to create flat';
+        Alert.alert('Error', errorMessage);
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      console.error('❌ Exception during flat creation:', error);
+      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
     }
   };
 
@@ -176,8 +189,21 @@ const CreateFlat = () => {
                   <Text className="text-green-700 text-xs mt-1">
                     • You'll become the flat admin{'\n'}
                     • A unique join code will be generated{'\n'}
-                    • Share the join code with your flatmates to join{'\n'}
-                    • Start managing expenses and payments
+                    • You can add flatmates using the join code{'\n'}
+                    • Start managing expenses and payments together
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Add Flatmates Info */}
+            <View className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <View className="flex-row items-start">
+                <Ionicons name="people" size={20} color="#2563eb" />
+                <View className="ml-3 flex-1">
+                  <Text className="text-blue-800 font-medium text-sm">Adding Flatmates</Text>
+                  <Text className="text-blue-700 text-xs mt-1">
+                    After creating the flat, you'll get a 6-digit join code. Share this code with your flatmates so they can join your flat and split expenses together!
                   </Text>
                 </View>
               </View>

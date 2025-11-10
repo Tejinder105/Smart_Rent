@@ -26,7 +26,6 @@ const settings = () => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // State for toggles
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(true);
@@ -38,27 +37,25 @@ const settings = () => {
 
   const handleLanguage = () => {
     console.log("Language settings");
-    // TODO: Navigate to language selection
+
   };
 
   const handlePaymentMethods = () => {
     console.log("Payment methods");
-    // TODO: Navigate to payment methods
   };
 
   const handleDataExport = () => {
     console.log("Export data");
-    // TODO: Handle data export
+ 
   };
 
   const handleDeleteAccount = () => {
     console.log("Delete account");
-    // TODO: Handle account deletion
+
   };
 
   const handleAbout = () => {
     console.log("About");
-    // TODO: Navigate to about page
   };
 
   const SettingsRow = ({ icon: Icon, title, subtitle, onPress, showToggle = false, toggleValue, onToggleChange, iconBgColor, iconColor }) => (

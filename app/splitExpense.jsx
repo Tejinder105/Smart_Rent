@@ -1,22 +1,25 @@
 import { useRouter } from 'expo-router';
 import {
-  Calculator,
-  CheckCircle,
-  ChevronLeft
+    Calculator,
+    CheckCircle,
+    ChevronLeft,
+    Sparkles
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { createSplitExpense, fetchAvailableFlatmates } from '../store/slices/expenseSlice';
+// Backend Bill API integration
+import { createBill } from '../store/slices/billSlice';
 
 const splitExpense = () => {
   const insets = useSafeAreaInsets();
@@ -25,14 +28,17 @@ const splitExpense = () => {
   
   const { availableFlatmates, loading, error } = useSelector((state) => state.expense);
   const { userData } = useSelector((state) => state.auth);
+  const { currentFlat } = useSelector((state) => state.flat);
+  const { loading: billLoading } = useSelector((state) => state.bill);
   const currentUser = userData;
   
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('groceries');
-  const [splitMethod, setSplitMethod] = useState('equal');
   const [selectedFlatmates, setSelectedFlatmates] = useState([]);
   const [creating, setCreating] = useState(false);
+  const [useBackendBill, setUseBackendBill] = useState(true); // Toggle for backend bill creation
+  const [dueDate, setDueDate] = useState(''); // For backend bills
 
   useEffect(() => {
     dispatch(fetchAvailableFlatmates());
@@ -72,17 +78,25 @@ const splitExpense = () => {
     );
   };
 
+  const toggleSelectAll = () => {
+    if (selectedFlatmates.length === availableFlatmates.length) {
+      // Deselect all
+      setSelectedFlatmates([]);
+    } else {
+      // Select all
+      const allIds = availableFlatmates.map(f => f._id || f.userId?._id);
+      setSelectedFlatmates(allIds);
+    }
+  };
+
   const calculateSplit = () => {
     const totalAmount = parseFloat(amount) || 0;
     const participantCount = selectedFlatmates.length;
     
     if (participantCount === 0) return 0;
     
-    if (splitMethod === 'equal') {
-      return (totalAmount / participantCount).toFixed(2);
-    }
-    
-    return 0;
+    // Always split equally
+    return (totalAmount / participantCount).toFixed(2);
   };
 
   const handleCreateExpense = async () => {
@@ -101,23 +115,22 @@ const splitExpense = () => {
       return;
     }
 
+    if (useBackendBill && !dueDate) {
+      Alert.alert('Error', 'Please select a due date for the bill');
+      return;
+    }
+
     const totalAmount = parseFloat(amount);
     const splitAmount = calculateSplit();
     
-    // Filter participants - now all use _id directly since backend was fixed
+    // Filter participants
     const participants = availableFlatmates.filter(f => 
       selectedFlatmates.includes(f._id?.toString?.() || f._id)
     );
 
-    console.log('🎯 Creating expense with participants:', participants.map(p => ({
-      name: p.name,
-      _id: p._id,
-      isCurrentUser: p.isCurrentUser
-    })));
-
     Alert.alert(
       'Confirm Expense',
-      `Split ₹${totalAmount} among ${participants.length} people (₹${splitAmount} each)?`,
+      `${useBackendBill ? 'Create bill' : 'Split expense'} of ₹${totalAmount} among ${participants.length} people (₹${splitAmount} each)?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -126,52 +139,73 @@ const splitExpense = () => {
           onPress: async () => {
             setCreating(true);
             try {
-              // Build participants array - simpler now with consistent _id
-              const participantsData = participants.map(p => {
-                const userId = p._id;
-                const userName = p.name;
-                
-                console.log('  → Participant:', userName, '| userId:', userId);
-                
-                if (!userId) {
-                  console.error('⚠️ WARNING: No userId found for participant:', userName);
-                }
-                
-                return {
-                  userId: userId,
-                  name: userName
+              if (useBackendBill) {
+                // Use backend bill API
+                const billData = {
+                  title: description,
+                  description: description,
+                  totalAmount: totalAmount,
+                  category: selectedCategory,
+                  dueDate: dueDate,
+                  splitMethod: 'equal',
+                  participants: participants.map(p => ({
+                    userId: p._id,
+                    name: p.name || p.userName || 'Unknown'
+                  })),
+                  vendor: 'Manual Entry'
                 };
-              });
-
-              console.log('📤 Sending expense with participants:', participantsData);
-
-              const expenseData = {
-                title: description,
-                description: description,
-                totalAmount: totalAmount,
-                category: selectedCategory,
-                splitMethod: splitMethod,
-                participants: participantsData
-              };
-              
-              await dispatch(createSplitExpense(expenseData)).unwrap();
-              
-              Alert.alert(
-                'Expense Created!',
-                `₹${totalAmount} expense split successfully. Each person owes ₹${splitAmount}`,
-                [
-                  {
+                
+                await dispatch(createBill(billData)).unwrap();
+                
+                Alert.alert(
+                  'Bill Created!',
+                  `₹${totalAmount} bill created successfully. Each person owes ₹${splitAmount}. Notifications sent to all participants.`,
+                  [{
                     text: 'OK',
                     onPress: () => {
-                      // Reset form
                       setAmount('');
                       setDescription('');
                       setSelectedFlatmates([]);
+                      setDueDate('');
                       router.back();
                     }
-                  }
-                ]
-              );
+                  }]
+                );
+              } else {
+                // Legacy split expense
+                const participantsData = participants.map(p => ({
+                  userId: p._id,
+                  name: p.name
+                }));
+
+                const expenseData = {
+                  title: description,
+                  description: description,
+                  totalAmount: totalAmount,
+                  category: selectedCategory,
+                  splitMethod: 'equal', // Always equal split
+                  participants: participantsData
+                };
+                
+                await dispatch(createSplitExpense(expenseData)).unwrap();
+                
+                Alert.alert(
+                  'Expense Created!',
+                  `₹${totalAmount} expense split successfully. Each person owes ₹${splitAmount}`,
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        setAmount('');
+                        setDescription('');
+                        setSelectedFlatmates([]);
+                        setDueDate('');
+                        router.back();
+                      }
+                    }
+                  ]
+                );
+              }
             } catch (error) {
               console.error('❌ Error creating expense:', error);
               Alert.alert('Error', error || 'Failed to create expense');
@@ -202,7 +236,6 @@ const splitExpense = () => {
   );
 
   const FlatmateCard = ({ flatmate, isSelected, onToggle }) => {
-    // Now all flatmates use _id directly
     const flatmateId = flatmate._id;
     const flatmateName = flatmate.name;
     const isCurrentUser = flatmate.isCurrentUser;
@@ -210,25 +243,30 @@ const splitExpense = () => {
     return (
       <TouchableOpacity
         onPress={() => onToggle(flatmateId)}
-        className={`bg-white rounded-xl p-4 mr-3 items-center min-w-[80px] border-2 ${
-          isSelected ? 'border-blue-500' : 'border-gray-200'
-        }`}
+        className="bg-white rounded-xl p-3 mb-3 border border-gray-200"
       >
-        <View className={`w-12 h-12 rounded-full items-center justify-center mb-2 ${
-          isCurrentUser ? 'bg-blue-500' : 'bg-gray-400'
-        }`}>
-          <Text className="text-white font-bold">
-            {flatmateName?.charAt(0)?.toUpperCase() || 'U'}
+        <View className="flex-row items-center">
+          {/* Checkbox */}
+          <View className={`w-6 h-6 rounded border-2 items-center justify-center mr-3 ${
+            isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+          }`}>
+            {isSelected && <CheckCircle size={14} color="#fff" />}
+          </View>
+          
+          {/* Avatar */}
+          <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${
+            isCurrentUser ? 'bg-blue-500' : 'bg-gray-400'
+          }`}>
+            <Text className="text-white font-bold text-sm">
+              {flatmateName?.charAt(0)?.toUpperCase() || 'U'}
+            </Text>
+          </View>
+          
+          {/* Name */}
+          <Text className="flex-1 text-base font-medium text-gray-700">
+            {isCurrentUser ? `${flatmateName} (You)` : flatmateName}
           </Text>
         </View>
-        <Text className="text-sm font-medium text-gray-700">
-          {isCurrentUser ? 'You' : flatmateName}
-        </Text>
-        {isSelected && (
-          <View className="absolute -top-1 -right-1">
-            <CheckCircle size={16} color="#22c55e" />
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -254,6 +292,38 @@ const splitExpense = () => {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {/* Backend Bill Toggle */}
+        <View className="mx-4 mt-4 bg-white rounded-2xl p-2 flex-row">
+          <TouchableOpacity 
+            onPress={() => setUseBackendBill(true)}
+            className={`flex-1 py-2 rounded-xl flex-row items-center justify-center ${useBackendBill ? 'bg-blue-500' : 'bg-transparent'}`}
+          >
+            <Sparkles size={16} color={useBackendBill ? '#fff' : '#6b7280'} />
+            <Text className={`font-semibold ml-2 ${useBackendBill ? 'text-white' : 'text-gray-600'}`}>
+              Create Bill
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setUseBackendBill(false)}
+            className={`flex-1 py-2 rounded-xl ${!useBackendBill ? 'bg-gray-500' : 'bg-transparent'}`}
+          >
+            <Text className={`text-center font-semibold ${!useBackendBill ? 'text-white' : 'text-gray-600'}`}>
+              Split Expense
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {useBackendBill && (
+          <View className="mx-4 mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3">
+            <View className="flex-row items-center">
+              <Sparkles size={18} color="#3b82f6" />
+              <Text className="flex-1 text-blue-800 text-sm font-medium ml-2">
+                Creating a bill will send notifications to all participants and track due dates
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Amount Input */}
         <View className="mx-4 mt-6 mb-6">
           <Text className="text-lg font-bold text-gray-900 mb-3">Amount</Text>
@@ -287,6 +357,25 @@ const splitExpense = () => {
           </View>
         </View>
 
+        {/* Due Date (only for backend bills) */}
+        {useBackendBill && (
+          <View className="mx-4 mb-6">
+            <Text className="text-lg font-bold text-gray-900 mb-3">Due Date</Text>
+            <View className="bg-white rounded-2xl p-4">
+              <TextInput
+                value={dueDate}
+                onChangeText={setDueDate}
+                placeholder="YYYY-MM-DD"
+                className="text-gray-900 text-base"
+                placeholderTextColor="#9ca3af"
+              />
+              <Text className="text-xs text-gray-500 mt-2">
+                Format: YYYY-MM-DD (e.g., 2024-12-31)
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Category Selection */}
         <View className="mx-4 mb-6">
           <Text className="text-lg font-bold text-gray-900 mb-3">Category</Text>
@@ -304,9 +393,28 @@ const splitExpense = () => {
           </ScrollView>
         </View>
 
-        {/* Participants */}
+        {/* Flatmates Selection */}
         <View className="mx-4 mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Split Among</Text>
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-lg font-bold text-gray-900">Select Flatmates</Text>
+            
+            {/* Select All Checkbox */}
+            <TouchableOpacity
+              onPress={toggleSelectAll}
+              className="flex-row items-center bg-white px-3 py-2 rounded-lg border border-gray-200"
+            >
+              <View className={`w-5 h-5 rounded border-2 items-center justify-center mr-2 ${
+                selectedFlatmates.length === availableFlatmates.length && availableFlatmates.length > 0
+                  ? 'bg-blue-500 border-blue-500'
+                  : 'border-gray-300'
+              }`}>
+                {selectedFlatmates.length === availableFlatmates.length && availableFlatmates.length > 0 && (
+                  <CheckCircle size={12} color="#fff" />
+                )}
+              </View>
+              <Text className="text-sm font-medium text-gray-700">Select All</Text>
+            </TouchableOpacity>
+          </View>
           
           {loading && (
             <View className="flex-1 justify-center items-center py-8">
@@ -322,56 +430,20 @@ const splitExpense = () => {
           )}
           
           {!loading && !error && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row">
-                {availableFlatmates.map((flatmate) => {
-                  const flatmateId = flatmate._id || flatmate.userId?._id;
-                  return (
-                    <FlatmateCard
-                      key={flatmateId}
-                      flatmate={flatmate}
-                      isSelected={selectedFlatmates.includes(flatmateId)}
-                      onToggle={toggleFlatmate}
-                    />
-                  );
-                })}
-              </View>
-            </ScrollView>
+            <View className="bg-white rounded-xl p-2">
+              {availableFlatmates.map((flatmate) => {
+                const flatmateId = flatmate._id || flatmate.userId?._id;
+                return (
+                  <FlatmateCard
+                    key={flatmateId}
+                    flatmate={flatmate}
+                    isSelected={selectedFlatmates.includes(flatmateId)}
+                    onToggle={toggleFlatmate}
+                  />
+                );
+              })}
+            </View>
           )}
-        </View>
-
-        {/* Split Method */}
-        <View className="mx-4 mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Split Method</Text>
-          <View className="bg-white rounded-2xl">
-            <TouchableOpacity
-              onPress={() => setSplitMethod('equal')}
-              className={`p-4 border-b border-gray-100 ${
-                splitMethod === 'equal' ? 'bg-blue-50' : ''
-              }`}
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="font-semibold text-gray-900">Equal Split</Text>
-                  <Text className="text-sm text-gray-500">Divide amount equally</Text>
-                </View>
-                {splitMethod === 'equal' && <CheckCircle size={20} color="#22c55e" />}
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              onPress={() => setSplitMethod('custom')}
-              className={`p-4 ${splitMethod === 'custom' ? 'bg-blue-50' : ''}`}
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="font-semibold text-gray-900">Custom Split</Text>
-                  <Text className="text-sm text-gray-500">Set custom amounts</Text>
-                </View>
-                {splitMethod === 'custom' && <CheckCircle size={20} color="#22c55e" />}
-              </View>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Split Preview */}

@@ -2,11 +2,11 @@ import { useRouter } from 'expo-router';
 import { Bell, Calendar, ChevronRight, Edit, HelpCircle, LogOut, Mail, Settings, Shield, User } from 'lucide-react-native';
 import { useEffect } from 'react';
 import {
-    Alert,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,6 +18,7 @@ const profile = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { userData, status } = useSelector((state) => state.auth);
+  const { currentFlat, loading: flatLoading } = useSelector((state) => state.flat);
 
   const handleNotificationPress = () => {
     router.push("/reminders");
@@ -25,7 +26,6 @@ const profile = () => {
 
   const handleEditProfile = () => {
     console.log("Edit profile");
-    // TODO: Navigate to edit profile screen
   };
 
   const handleSettings = () => {
@@ -34,15 +34,12 @@ const profile = () => {
 
   const handleHelp = () => {
     console.log("Help & Support");
-    // TODO: Navigate to help screen
   };
 
   const handlePrivacy = () => {
     console.log("Privacy & Security");
-    // TODO: Navigate to privacy screen
   };
 
-  // Use useEffect to handle redirect instead of doing it in render
   useEffect(() => {
     if (!status) {
       router.replace('/auth');
@@ -63,17 +60,17 @@ const profile = () => {
           style: "destructive",
           onPress: async () => {
             try {
-              // Call API logout to clear server-side session
+      
               await authAPI.logout();
               
-              // Dispatch logout action to clear Redux state
+              
               dispatch(logout());
               
-              // Navigate to auth screen
+        
               router.replace('/auth');
             } catch (error) {
               console.error('Logout error:', error);
-              // Even if API fails, clear local state
+
               dispatch(logout());
               router.replace('/auth');
             }
@@ -83,7 +80,7 @@ const profile = () => {
     );
   };
 
-  // Show loading or nothing while redirecting
+
   if (!status) {
     return null;
   }

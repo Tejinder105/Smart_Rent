@@ -1,121 +1,87 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from "axios";
+import { createDefaultApiClient, handleApiError, tokenManager } from './apiClient';
 
-const BASE_URL = "http://192.168.59.31:8000/api/v1";
-
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-const storeTokens = async (accessToken, refreshToken) => {
-  try {
-    await AsyncStorage.setItem('accessToken', accessToken);
-    await AsyncStorage.setItem('refreshToken', refreshToken);
-  } catch (error) {
-    console.error('Error storing tokens:', error);
-  }
-};
-
-const getTokens = async () => {
-  try {
-    const accessToken = await AsyncStorage.getItem('accessToken');
-    const refreshToken = await AsyncStorage.getItem('refreshToken');
-    return { accessToken, refreshToken };
-  } catch (error) {
-    console.error('Error getting tokens:', error);
-    return { accessToken: null, refreshToken: null };
-  }
-};
-
-const clearTokens = async () => {
-  try {
-    await AsyncStorage.removeItem('accessToken');
-    await AsyncStorage.removeItem('refreshToken');
-  } catch (error) {
-    console.error('Error clearing tokens:', error);
-  }
-};
+const api = createDefaultApiClient();
 
 
 const register = async (userData) => {
   try {
-    console.log("Attempting registration with data:", userData);
-    console.log("API Base URL:", BASE_URL);
+    console.log("📝 Attempting registration with data:", userData);
     
-    const res = await api.post("/users/register", userData);
+    const res = await api.post("/auth/register", userData);
     console.log("✅ Registration successful:", res.data);
+    
     if (res.data?.data?.accessToken && res.data?.data?.refreshToken) {
-      await storeTokens(res.data.data.accessToken, res.data.data.refreshToken);
+      await tokenManager.storeTokens(res.data.data.accessToken, res.data.data.refreshToken);
+    } else {
+      console.log('⚠️ No tokens in registration response');
     }
     
     return res.data;
   } catch (error) {
-   console.log(error);
-    throw error;
+    handleApiError(error, 'Register');
   }
 };
 
 const login = async (credentials) => {
   try {
-    const res = await api.post("/users/login", credentials);
+    console.log("🔑 Attempting login...");
+    const res = await api.post("/auth/login", credentials);
+    console.log("✅ Login API response received");
+    
     if (res.data?.data?.accessToken && res.data?.data?.refreshToken) {
-      await storeTokens(res.data.data.accessToken, res.data.data.refreshToken);
+      await tokenManager.storeTokens(res.data.data.accessToken, res.data.data.refreshToken);
+      
+      // Verify tokens were stored
+      const accessToken = await tokenManager.getAccessToken();
+      console.log('Token verification:', accessToken ? '✅ Token readable' : '❌ Token not found');
+    } else {
+      console.log('⚠️ No tokens in login response');
     }
     
     return res.data;
   } catch (error) {
-    console.error("Login error:", error.response?.data || error.message);
-    throw error;
+    handleApiError(error, 'Login');
   }
 };
 
 const getCurrentUser = async () => {
   try {
-    const { accessToken } = await getTokens();
-    
-    if (!accessToken) {
-      throw new Error('No access token available');
-    }
-    
-    const res = await api.get("/users/current-user", {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-    
+    const res = await api.get("/auth/me");
     return res.data;
   } catch (error) {
-    console.error("Get current user error:", error.response?.data || error.message);
-    throw error;
+    handleApiError(error, 'Get current user');
   }
 };
 
 const logout = async () => {
   try {
-    const { accessToken } = await getTokens();
+    const accessToken = await tokenManager.getAccessToken();
     
     if (accessToken) {
-      const res = await api.post("/users/logout", {}, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-      
-      await clearTokens();
-      
+      const res = await api.post("/auth/logout", {});
+      await tokenManager.clearTokens();
       return res.data;
     } else {
-      await clearTokens();
+      await tokenManager.clearTokens();
       return { message: "Logged out locally" };
     }
   } catch (error) {
-    console.error("Logout error:", error.response?.data || error.message);
-    await clearTokens();
-    throw error;
+    // Always clear tokens on logout, even if API call fails
+    await tokenManager.clearTokens();
+    handleApiError(error, 'Logout');
   }
 };
 
-export default { api, register, login, logout, getCurrentUser, storeTokens, getTokens, clearTokens };
+export default { 
+  api, 
+  register, 
+  login, 
+  logout, 
+  getCurrentUser, 
+  storeTokens: tokenManager.storeTokens, 
+  getTokens: async () => ({
+    accessToken: await tokenManager.getAccessToken(),
+    refreshToken: await tokenManager.getRefreshToken()
+  }), 
+  clearTokens: tokenManager.clearTokens 
+};

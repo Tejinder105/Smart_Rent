@@ -1,3 +1,4 @@
+import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -13,6 +14,55 @@ Notifications.setNotificationHandler({
 class NotificationService {
   constructor() {
     this.notificationChannel = 'smart-rent-reminders';
+    this.expoPushToken = null;
+  }
+
+  /**
+   * Register for push notifications and get Expo Push Token
+   */
+  async registerForPushNotifications() {
+    try {
+      if (!Device.isDevice) {
+        console.warn('⚠️ Push notifications only work on physical devices');
+        return null;
+      }
+
+      // Request permissions
+      const hasPermission = await this.requestPermissions();
+      if (!hasPermission) {
+        console.warn('⚠️ Notification permissions not granted');
+        return null;
+      }
+
+      // Get Expo Push Token (without projectId for development)
+      // For production, add projectId from app.json extra.eas.projectId
+      try {
+        const token = await Notifications.getExpoPushTokenAsync({
+          // projectId can be omitted in development/standalone builds
+          // Add this when you have an EAS project: projectId: 'your-project-id'
+        });
+
+        this.expoPushToken = token.data;
+        console.log('✅ Expo Push Token:', this.expoPushToken);
+        
+        return this.expoPushToken;
+      } catch (tokenError) {
+        // Token generation might fail in development - that's okay
+        console.warn('⚠️ Could not get Expo Push Token (this is normal in development):', tokenError.message);
+        console.log('✅ Push notifications will still work locally');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Error registering for push notifications:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get current Expo Push Token
+   */
+  getExpoPushToken() {
+    return this.expoPushToken;
   }
 
   /**
@@ -22,13 +72,25 @@ class NotificationService {
     try {
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync(this.notificationChannel, {
-          name: 'Smart Rent Reminders',
+          name: 'Smart Rent Notifications',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#22c55e',
           sound: 'default',
           enableVibrate: true,
           showBadge: true,
+        });
+
+        // Create additional channel for high priority (bills/expenses)
+        await Notifications.setNotificationChannelAsync('smart-rent-alerts', {
+          name: 'Bills & Expenses',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 500, 200, 500],
+          lightColor: '#22c55e',
+          sound: 'default',
+          enableVibrate: true,
+          showBadge: true,
+          enableLights: true,
         });
       }
 
@@ -45,6 +107,80 @@ class NotificationService {
       console.error('Error requesting notification permissions:', error);
       return false;
     }
+  }
+
+  /**
+   * Show local push notification (like WhatsApp)
+   */
+  async showLocalNotification({ title, body, data, sound = 'default', priority = 'high' }) {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          data,
+          sound,
+          priority: Platform.OS === 'android' 
+            ? Notifications.AndroidNotificationPriority.MAX 
+            : undefined,
+          badge: 1,
+        },
+        trigger: {
+          seconds: 1,
+          channelId: data?.type === 'reminder' 
+            ? this.notificationChannel 
+            : 'smart-rent-alerts',
+        },
+      });
+
+      console.log('✅ Local notification sent:', title);
+    } catch (error) {
+      console.error('❌ Error showing notification:', error);
+    }
+  }
+
+  /**
+   * Handle new bill notification
+   */
+  async notifyNewBill(bill, creatorName) {
+    await this.showLocalNotification({
+      title: '💰 New Bill Created',
+      body: `${creatorName} created "${bill.title}" - ₹${bill.totalAmount}`,
+      data: {
+        type: 'bill_created',
+        billId: bill._id,
+        screen: 'reminders',
+      },
+    });
+  }
+
+  /**
+   * Handle new expense notification
+   */
+  async notifyNewExpense(expense, creatorName, yourShare) {
+    await this.showLocalNotification({
+      title: '🧾 New Expense Split',
+      body: `${creatorName}: "${expense.title}" - Your share: ₹${yourShare}`,
+      data: {
+        type: 'expense_created',
+        expenseId: expense._id,
+        screen: 'reminders',
+      },
+    });
+  }
+
+  /**
+   * Handle payment received notification
+   */
+  async notifyPaymentReceived(payerName, amount, billTitle) {
+    await this.showLocalNotification({
+      title: '✅ Payment Received',
+      body: `${payerName} paid ₹${amount} for "${billTitle}"`,
+      data: {
+        type: 'payment_received',
+        screen: 'reminders',
+      },
+    });
   }
 
   /**

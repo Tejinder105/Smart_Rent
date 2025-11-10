@@ -1,128 +1,69 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from "axios";
+import { createV1ApiClient, handleApiError } from './apiClient';
 
-const BASE_URL = "http://192.168.59.31:8000/api/v1";
+// Use v1 for backward compatibility with payment endpoints
+const api = createV1ApiClient();
 
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-  timeout: 10000, // 10 second timeout
-});
-
-// Add request interceptor to include auth token
-api.interceptors.request.use(
-  async (config) => {
-    try {
-      const accessToken = await AsyncStorage.getItem('accessToken');
-      if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
-      }
-    } catch (error) {
-      console.error('Error getting access token:', error);
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor to handle 401 errors
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid - clear storage
-      try {
-        await AsyncStorage.removeItem('accessToken');
-        await AsyncStorage.removeItem('refreshToken');
-        console.log('⚠️ Session expired. Please login again.');
-      } catch (err) {
-        console.error('Error clearing tokens:', err);
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Payment API functions
 const paymentAPI = {
-  // Get all user payments
   getUserPayments: async (params = {}) => {
     try {
       const res = await api.get("/payments", { params });
       return res.data;
     } catch (error) {
-      console.error("Get user payments error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Get user payments');
     }
   },
 
-  // Get outstanding dues
   getOutstandingDues: async () => {
     try {
       const res = await api.get("/payments/outstanding");
       return res.data;
     } catch (error) {
-      console.error("Get outstanding dues error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Get outstanding dues');
     }
   },
 
-  // Create new payment
   createPayment: async (paymentData) => {
     try {
       const res = await api.post("/payments", paymentData);
       return res.data;
     } catch (error) {
-      console.error("Create payment error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Create payment');
     }
   },
 
-  // Process payment (mark as paid)
   processPayment: async (paymentId, processData) => {
     try {
       const res = await api.post(`/payments/${paymentId}/process`, processData);
       return res.data;
     } catch (error) {
-      console.error("Process payment error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Process payment');
     }
   },
 
-  // Update payment
   updatePayment: async (paymentId, updateData) => {
     try {
       const res = await api.put(`/payments/${paymentId}`, updateData);
       return res.data;
     } catch (error) {
-      console.error("Update payment error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Update payment');
     }
   },
 
-  // Delete payment
   deletePayment: async (paymentId) => {
     try {
       const res = await api.delete(`/payments/${paymentId}`);
       return res.data;
     } catch (error) {
-      console.error("Delete payment error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Delete payment');
     }
   },
 
-  // Get payment statistics
   getPaymentStats: async () => {
     try {
       const res = await api.get("/payments/stats");
       return res.data;
     } catch (error) {
-      console.error("Get payment stats error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Get payment stats');
     }
   }
 };

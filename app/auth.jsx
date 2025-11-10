@@ -2,14 +2,14 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 
 import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useDispatch, useSelector } from 'react-redux';
 import authAPI from '../store/api/authAPI';
@@ -59,9 +59,11 @@ const auth = () => {
       dispatch(setLoading(true));
       try{
         const response = await authAPI.register(userData);
-        console.log("Registration successful:", response);
+        console.log("✅ Registration successful:", response);
         
-
+        // Wait a bit for AsyncStorage to finish writing the tokens
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const user = response.data?.user || response.data?.data?.user;
         if (user) {
           dispatch(login({ userData: user }));
@@ -72,7 +74,7 @@ const auth = () => {
         }
       }
       catch(err){
-        console.error("Registration error:", err);
+        console.error("❌ Registration error:", err);
         const errorMessage = err.response?.data?.message || err.message || "Registration failed";
         dispatch(setError(errorMessage));
         Alert.alert("Error", errorMessage);
@@ -95,26 +97,27 @@ const auth = () => {
       dispatch(setLoading(true));
       try{
         const response = await authAPI.login(credentials);
-        console.log("Login successful:", response);
-        console.log("Response structure:", JSON.stringify(response, null, 2));
+        console.log("✅ Login successful:", response);
         
-
+        // Wait a bit for AsyncStorage to finish writing the tokens
+        // This ensures the axios interceptor can read the token properly
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const userData = response.data?.user || response.user || response.data?.data?.user;
         console.log("User data:", userData);
         
         if (userData) {
           dispatch(login({ userData }));
-          console.log("Dispatch completed");
+          console.log("✅ Dispatch completed, navigating...");
           Alert.alert("Success", "Logged in successfully!");
         } else {
-    
           dispatch(login({ userData: { email } }));
-          console.log("Dispatch completed with fallback data");
+          console.log("✅ Dispatch completed with fallback data");
           Alert.alert("Success", "Logged in successfully!");
         }
       }
       catch(err){
-        console.error("Login error:", err);
+        console.error("❌ Login error:", err);
         const errorMessage = err.response?.data?.message || err.message || "Login failed";
         dispatch(setError(errorMessage));
         Alert.alert("Error", errorMessage);

@@ -1,12 +1,15 @@
 import * as Notifications from 'expo-notifications';
 import { useRouter } from "expo-router";
-import { AlertCircle, AlertTriangle, Bell, ChevronLeft, Clock, Users } from "lucide-react-native";
+import { AlertCircle, AlertTriangle, Bell, Check, ChevronLeft, Clock, DollarSign, FileText, Users } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchParticipantExpenses } from "../store/slices/expenseSlice";
 import { fetchOutstandingDues } from "../store/slices/paymentSlice";
+// New notification API integration
+import { fetchUserDues } from "../store/slices/billSlice";
+import { fetchNotifications, fetchUnreadCount, markNotificationAsRead } from "../store/slices/notificationSlice";
 import notificationService from "../utils/notificationService";
 
 const reminders = () => {
@@ -19,11 +22,17 @@ const reminders = () => {
   const { outstandingDues, loading: paymentsLoading } = useSelector((state) => state.payment);
   const { participantExpenses, loading: expensesLoading } = useSelector((state) => state.expense);
   const { userData } = useSelector((state) => state.auth);
+  const { currentFlat } = useSelector((state) => state.flat);
+  // New: Backend notifications
+  const { notifications: backendNotifications, unreadCount, loading: notifLoading } = useSelector((state) => state.notification);
+  const { userDues, loading: duesLoading } = useSelector((state) => state.bill);
+  
   const user = userData;
 
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'overdue', 'upcoming'
+  const [activeTab, setActiveTab] = useState('all');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [showBackendNotifs, setShowBackendNotifs] = useState(true); // Toggle between backend/local
 
   useEffect(() => {
     loadData();
@@ -40,7 +49,7 @@ const reminders = () => {
   }, []);
 
   useEffect(() => {
-    // Update badge count and schedule notifications when data changes
+   
     if (notificationsEnabled && allReminders.length > 0) {
       const overdueCount = allReminders.filter(r => r.isOverdue).length;
       notificationService.setBadgeCount(overdueCount);
@@ -77,10 +86,16 @@ const reminders = () => {
   };
 
   const loadData = async () => {
+    // Load both legacy and new data
     await Promise.all([
+      // Legacy data
       dispatch(fetchOutstandingDues()),
-      dispatch(fetchParticipantExpenses())
-    ]);
+      dispatch(fetchParticipantExpenses()),
+      // New backend notifications and dues
+      dispatch(fetchNotifications()),
+      dispatch(fetchUnreadCount()),
+      currentFlat?._id && dispatch(fetchUserDues())
+    ].filter(Boolean));
   };
 
   const onRefresh = async () => {
@@ -93,7 +108,6 @@ const reminders = () => {
     router.back();
   };
 
-  // Get days remaining until due date
   const getDaysRemaining = (dueDate) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -104,11 +118,9 @@ const reminders = () => {
     return diffDays;
   };
 
-  // Process reminders from payments and expenses
   const processReminders = () => {
     const allReminders = [];
 
-    // Add outstanding personal payments
     outstandingDues?.forEach(payment => {
       if (payment.status === 'pending' && payment.dueDate) {
         const daysRemaining = getDaysRemaining(payment.dueDate);
@@ -127,7 +139,6 @@ const reminders = () => {
       }
     });
 
-    // Add unpaid split expenses
     participantExpenses?.forEach(expense => {
       const userParticipant = expense.participants?.find(p => p.userId === user?._id);
       if (userParticipant && !userParticipant.isPaid && expense.dueDate) {
@@ -148,13 +159,11 @@ const reminders = () => {
       }
     });
 
-    // Sort by due date (earliest first)
     return allReminders.sort((a, b) => a.dueDate - b.dueDate);
   };
 
   const allReminders = processReminders();
   
-  // Filter based on active tab
   const filteredReminders = allReminders.filter(reminder => {
     if (activeTab === 'overdue') return reminder.isOverdue;
     if (activeTab === 'upcoming') return !reminder.isOverdue;
@@ -164,7 +173,6 @@ const reminders = () => {
   const overdueCount = allReminders.filter(r => r.isOverdue).length;
   const upcomingCount = allReminders.filter(r => !r.isOverdue).length;
 
-  // Get category icon and color
   const getCategoryStyle = (category) => {
     const styles = {
       rent: { icon: 'home', bgColor: 'bg-green-100', color: '#16a34a' },
@@ -305,12 +313,25 @@ const reminders = () => {
                 Reminders
               </Text>
               <Text className="text-sm text-gray-500">
-                {allReminders.length} total reminder{allReminders.length !== 1 ? 's' : ''}
+                {showBackendNotifs 
+                  ? `${backendNotifications?.length || 0} notification${backendNotifications?.length !== 1 ? 's' : ''}`
+                  : `${allReminders.length} reminder${allReminders.length !== 1 ? 's' : ''}`
+                }
+                {unreadCount > 0 && showBackendNotifs && ` (${unreadCount} unread)`}
               </Text>
             </View>
           </View>
-          {overdueCount > 0 && (
-            <View className="bg-red-100 px-3 py-1 rounded-full">
+          {/* Toggle Button */}
+          <TouchableOpacity 
+            onPress={() => setShowBackendNotifs(!showBackendNotifs)}
+            className={`px-4 py-2 rounded-full ${showBackendNotifs ? 'bg-blue-100' : 'bg-gray-200'}`}
+          >
+            <Text className={`text-sm font-semibold ${showBackendNotifs ? 'text-blue-700' : 'text-gray-700'}`}>
+              {showBackendNotifs ? 'Notifications' : 'Local'}
+            </Text>
+          </TouchableOpacity>
+          {overdueCount > 0 && !showBackendNotifs && (
+            <View className="bg-red-100 px-3 py-1 rounded-full ml-2">
               <Text className="text-red-700 font-bold text-sm">{overdueCount} Overdue</Text>
             </View>
           )}
@@ -345,8 +366,8 @@ const reminders = () => {
         </TouchableOpacity>
       )}
 
-      {/* Summary Cards */}
-      {!loading && allReminders.length > 0 && (
+      {/* Summary Cards - Only for Local Reminders */}
+      {!loading && !showBackendNotifs && allReminders.length > 0 && (
         <View className="px-4 pt-4 pb-2">
           <View className="flex-row gap-3">
             <View className="flex-1 bg-red-50 border border-red-200 rounded-xl p-4">
@@ -368,8 +389,8 @@ const reminders = () => {
         </View>
       )}
 
-      {/* Filter Tabs */}
-      {!loading && allReminders.length > 0 && (
+      {/* Filter Tabs - Only for Local Reminders */}
+      {!loading && !showBackendNotifs && allReminders.length > 0 && (
         <View className="px-4 py-3">
           <View className="flex-row bg-white rounded-xl p-1 border border-gray-200">
             <TouchableOpacity
@@ -412,9 +433,99 @@ const reminders = () => {
         {loading && !refreshing ? (
           <View className="flex-1 justify-center items-center py-12">
             <ActivityIndicator size="large" color="#22c55e" />
-            <Text className="mt-2 text-gray-600">Loading reminders...</Text>
+            <Text className="mt-2 text-gray-600">Loading...</Text>
+          </View>
+        ) : showBackendNotifs ? (
+          // Backend Notifications View
+          <View className="pb-6 pt-4">
+            {notifLoading && backendNotifications.length === 0 ? (
+              <View className="flex-1 justify-center items-center py-12">
+                <ActivityIndicator size="large" color="#22c55e" />
+                <Text className="mt-2 text-gray-600">Loading notifications...</Text>
+              </View>
+            ) : backendNotifications.length === 0 ? (
+              <View className="bg-blue-50 border border-blue-200 rounded-xl p-6 mx-4 items-center">
+                <Bell size={48} color="#3b82f6" />
+                <Text className="text-blue-800 text-lg font-semibold mt-4">
+                  No Notifications
+                </Text>
+                <Text className="text-blue-600 text-center mt-2">
+                  You're all caught up! Backend notifications will appear here.
+                </Text>
+              </View>
+            ) : (
+              backendNotifications.map((notification) => (
+                <TouchableOpacity
+                  key={notification._id}
+                  onPress={() => {
+                    if (!notification.read) {
+                      dispatch(markNotificationAsRead(notification._id));
+                    }
+                  }}
+                  className={`mx-4 mb-3 p-4 rounded-xl border ${
+                    notification.read 
+                      ? 'bg-gray-50 border-gray-200' 
+                      : 'bg-white border-blue-300 shadow-sm'
+                  }`}
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-row items-start">
+                    <View className={`w-10 h-10 rounded-full items-center justify-center ${
+                      notification.type === 'bill_due' || notification.type === 'bill_overdue' ? 'bg-red-100' :
+                      notification.type === 'payment_reminder' ? 'bg-amber-100' :
+                      notification.type === 'payment_received' ? 'bg-green-100' :
+                      notification.type === 'bill_created' ? 'bg-blue-100' :
+                      notification.type === 'expense_created' ? 'bg-purple-100' :
+                      'bg-gray-100'
+                    }`}>
+                      {(notification.type === 'bill_due' || notification.type === 'bill_overdue') && <AlertCircle size={20} color="#ef4444" />}
+                      {notification.type === 'payment_reminder' && <Clock size={20} color="#f59e0b" />}
+                      {notification.type === 'payment_received' && <Check size={20} color="#22c55e" />}
+                      {notification.type === 'bill_created' && <FileText size={20} color="#3b82f6" />}
+                      {notification.type === 'expense_created' && <DollarSign size={20} color="#8b5cf6" />}
+                      {!['bill_due', 'bill_overdue', 'payment_reminder', 'payment_received', 'bill_created', 'expense_created'].includes(notification.type) && 
+                        <Bell size={20} color="#6b7280" />}
+                    </View>
+                    
+                    <View className="flex-1 ml-3">
+                      <View className="flex-row items-center justify-between mb-1">
+                        <Text className={`text-sm font-bold ${notification.read ? 'text-gray-700' : 'text-gray-900'}`}>
+                          {notification.title}
+                        </Text>
+                        {!notification.read && (
+                          <View className="w-2 h-2 rounded-full bg-blue-500" />
+                        )}
+                      </View>
+                      
+                      <Text className={`text-sm ${notification.read ? 'text-gray-500' : 'text-gray-700'} mb-2`}>
+                        {notification.message}
+                      </Text>
+                      
+                      {notification.payload && notification.payload.amount && (
+                        <View className="bg-gray-100 px-3 py-1 rounded-lg self-start mb-2">
+                          <Text className="text-gray-800 font-bold">
+                            ₹{notification.payload.amount}
+                          </Text>
+                        </View>
+                      )}
+                      
+                      <Text className="text-xs text-gray-400">
+                        {new Date(notification.createdAt).toLocaleString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         ) : filteredReminders.length === 0 ? (
+          // Local Reminders Empty State
           <View className="bg-green-50 border border-green-200 rounded-xl p-6 mx-4 mt-4 items-center">
             <Bell size={48} color="#22c55e" />
             <Text className="text-green-800 text-lg font-semibold mt-4">

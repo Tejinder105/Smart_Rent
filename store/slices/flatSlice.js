@@ -112,6 +112,9 @@ const initialState = {
   
   // Flat members
   flatMembers: [],
+  members: [],
+  membersLoading: false,
+  membersError: null,
   
   // Loading states
   loading: false,
@@ -271,8 +274,18 @@ const flatSlice = createSlice({
       })
 
       // Fetch flat members
+      .addCase(fetchFlatMembers.pending, (state) => {
+        state.membersLoading = true;
+        state.membersError = null;
+      })
       .addCase(fetchFlatMembers.fulfilled, (state, action) => {
+        state.membersLoading = false;
         state.flatMembers = action.payload;
+        state.members = action.payload;
+      })
+      .addCase(fetchFlatMembers.rejected, (state, action) => {
+        state.membersLoading = false;
+        state.membersError = action.payload;
       })
 
 

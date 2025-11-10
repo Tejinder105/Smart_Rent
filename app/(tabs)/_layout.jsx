@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BarChart3, CircleUserRound, History, Home, Users } from "lucide-react-native";
+import { BarChart3, CircleUserRound, FileText, History, Home } from "lucide-react-native";
 
 export default function RootLayout() {
   return (
@@ -14,11 +14,11 @@ export default function RootLayout() {
         }}
       />
       <Tabs.Screen
-        name="flatmates"
+        name="bills"
         options={{ 
-          title: "Flatmates",
+          title: "Bills",
           tabBarIcon: ({ color }) => (
-            <Users color={color} size={20} />
+            <FileText color={color} size={20} />
           )
         }}
       />

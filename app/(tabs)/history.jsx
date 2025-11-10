@@ -1,11 +1,13 @@
 import { useRouter } from "expo-router";
-import { Calendar, CheckCircle, DollarSign, FileText, Home, Users, Zap } from "lucide-react-native";
+import { ArrowUpDown, Calendar, CheckCircle, DollarSign, FileText, Home, Users, Zap } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchParticipantExpenses } from "../../store/slices/expenseSlice";
 import { fetchPaymentStats, fetchUserPayments } from "../../store/slices/paymentSlice";
+// Backend Transaction API integration
+import { fetchTransactionSummary, fetchUserTransactions } from "../../store/slices/transactionSlice";
 
 const history = () => {
   const insets = useSafeAreaInsets();
@@ -15,9 +17,14 @@ const history = () => {
   const { payments, stats, loading, error } = useSelector((state) => state.payment);
   const { participantExpenses, loading: expenseLoading } = useSelector((state) => state.expense);
   const { userData } = useSelector((state) => state.auth);
+  const { currentFlat, loading: flatLoading } = useSelector((state) => state.flat);
+  // Backend transaction data
+  const { userTransactions, transactionSummary, loading: transactionLoading } = useSelector((state) => state.transaction);
+  
   const user = userData;
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('all'); // 'all', 'month', 'quarter', 'year'
+  const [useBackendData, setUseBackendData] = useState(true); // Toggle between backend/local data
   
   useEffect(() => {
     loadData();
@@ -25,6 +32,10 @@ const history = () => {
 
   const loadData = async () => {
     await Promise.all([
+      // Backend data
+      dispatch(fetchUserTransactions()),
+      dispatch(fetchTransactionSummary()),
+      // Legacy data
       dispatch(fetchUserPayments()),
       dispatch(fetchPaymentStats()),
       dispatch(fetchParticipantExpenses())
@@ -40,7 +51,6 @@ const history = () => {
   const getFilteredPayments = () => {
     if (!payments) return [];
     
-    // Only show paid bills
     let paidPayments = payments.filter(p => p.status === 'paid');
     
     if (selectedPeriod === 'all') {
@@ -70,11 +80,11 @@ const history = () => {
     });
   };
 
-  // Filter split bills - ONLY show paid transactions
+
   const getFilteredSplitBills = () => {
     if (!participantExpenses) return [];
     
-    // Only show paid split bills
+
     let paidExpenses = participantExpenses.filter(expense => {
       const userParticipant = expense.participants?.find(p => p.userId === user?._id);
       return userParticipant && userParticipant.isPaid;
@@ -342,7 +352,7 @@ const history = () => {
               Payment History
             </Text>
             <Text className="text-sm pl-2 text-gray-500 mt-1">
-              Track all your past payments
+              {useBackendData ? 'Unified transaction view' : 'Track all your past payments'}
             </Text>
           </View>
         </View>
@@ -355,6 +365,158 @@ const history = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Data Source Toggle */}
+        <View className="mx-4 mt-4 bg-white rounded-2xl p-2 flex-row">
+          <TouchableOpacity 
+            onPress={() => setUseBackendData(true)}
+            className={`flex-1 py-2 rounded-xl flex-row items-center justify-center ${useBackendData ? 'bg-green-500' : 'bg-transparent'}`}
+          >
+            <ArrowUpDown size={16} color={useBackendData ? '#fff' : '#6b7280'} />
+            <Text className={`font-semibold ml-2 ${useBackendData ? 'text-white' : 'text-gray-600'}`}>
+              Unified View
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setUseBackendData(false)}
+            className={`flex-1 py-2 rounded-xl ${!useBackendData ? 'bg-gray-500' : 'bg-transparent'}`}
+          >
+            <Text className={`text-center font-semibold ${!useBackendData ? 'text-white' : 'text-gray-600'}`}>
+              Separated
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {useBackendData ? (
+          // Backend Unified Transaction View
+          <>
+            {/* Transaction Summary Cards */}
+            {transactionSummary && (
+              <View className="px-4 py-4">
+                <View className="flex-row gap-3">
+                  <View className="flex-1 bg-white rounded-2xl p-4 border border-green-200">
+                    <View className="flex-row items-center justify-between mb-2">
+                      <Text className="text-gray-600 text-sm">Total Paid</Text>
+                      <CheckCircle size={18} color="#16a34a" />
+                    </View>
+                    <Text className="text-2xl font-bold text-green-600">
+                      ₹{transactionSummary.totalAmount?.toFixed(0) || 0}
+                    </Text>
+                    <Text className="text-xs text-gray-500 mt-1">
+                      {transactionSummary.totalTransactions || 0} transactions
+                    </Text>
+                  </View>
+
+                  <View className="flex-1 bg-white rounded-2xl p-4 border border-blue-200">
+                    <View className="flex-row items-center justify-between mb-2">
+                      <Text className="text-gray-600 text-sm">Bills Paid</Text>
+                      <FileText size={18} color="#3b82f6" />
+                    </View>
+                    <Text className="text-2xl font-bold text-blue-600">
+                      {transactionSummary.billCount || 0}
+                    </Text>
+                    <Text className="text-xs text-gray-500 mt-1">
+                      ₹{transactionSummary.billAmount?.toFixed(0) || 0}
+                    </Text>
+                  </View>
+
+                  <View className="flex-1 bg-white rounded-2xl p-4 border border-purple-200">
+                    <View className="flex-row items-center justify-between mb-2">
+                      <Text className="text-gray-600 text-sm">Avg/Txn</Text>
+                      <DollarSign size={18} color="#8b5cf6" />
+                    </View>
+                    <Text className="text-2xl font-bold text-purple-600">
+                      ₹{transactionSummary.totalTransactions > 0 
+                        ? Math.round(transactionSummary.totalAmount / transactionSummary.totalTransactions) 
+                        : 0}
+                    </Text>
+                    <Text className="text-xs text-gray-500 mt-1">average</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Unified Transaction List */}
+            <View className="pb-6">
+              {transactionLoading && !refreshing ? (
+                <View className="flex-1 justify-center items-center py-8">
+                  <ActivityIndicator size="large" color="#16a34a" />
+                  <Text className="mt-2 text-gray-600">Loading transactions...</Text>
+                </View>
+              ) : !userTransactions || userTransactions.length === 0 ? (
+                <View className="bg-blue-50 border border-blue-200 rounded-xl p-6 mx-4 items-center">
+                  <ArrowUpDown size={48} color="#3b82f6" />
+                  <Text className="text-blue-800 text-lg font-semibold mt-4">No Transactions</Text>
+                  <Text className="text-blue-600 text-center mt-2">
+                    Your transaction history will appear here
+                  </Text>
+                </View>
+              ) : (
+                <View className="mx-4">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <Text className="text-lg font-bold text-gray-900">
+                      All Transactions
+                    </Text>
+                    <View className="bg-green-100 px-3 py-1 rounded-full">
+                      <Text className="text-green-700 text-xs font-semibold">
+                        {userTransactions.length} total
+                      </Text>
+                    </View>
+                  </View>
+
+                  {userTransactions.map((txn, index) => (
+                    <View key={txn._id || index} className="bg-white rounded-2xl p-4 mb-3 border border-gray-100">
+                      <View className="flex-row items-start justify-between mb-2">
+                        <View className="flex-row items-center flex-1">
+                          <View className={`w-12 h-12 rounded-xl items-center justify-center mr-3 ${
+                            txn.type === 'bill_payment' ? 'bg-blue-100' :
+                            txn.type === 'expense_share' ? 'bg-purple-100' :
+                            'bg-green-100'
+                          }`}>
+                            {txn.type === 'bill_payment' && <FileText size={24} color="#3b82f6" />}
+                            {txn.type === 'expense_share' && <Users size={24} color="#8b5cf6" />}
+                            {txn.type === 'payment' && <DollarSign size={24} color="#16a34a" />}
+                          </View>
+                          <View className="flex-1">
+                            <Text className="text-base font-bold text-gray-900">
+                              {txn.description || 'Transaction'}
+                            </Text>
+                            <Text className="text-sm text-gray-500 mt-1">
+                              {txn.type === 'bill_payment' ? 'Bill Payment' :
+                               txn.type === 'expense_share' ? 'Split Expense' :
+                               'Payment'}
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        <View className="items-end">
+                          <Text className="text-lg font-bold text-green-600">
+                            ₹{txn.amount?.toFixed(0) || 0}
+                          </Text>
+                          <Text className="text-xs text-gray-500 mt-1">
+                            {new Date(txn.date).toLocaleDateString('en-IN', {
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {txn.reference && (
+                        <View className="bg-gray-50 rounded-lg p-2 mt-2">
+                          <Text className="text-xs text-gray-600">
+                            Ref: {txn.reference}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </>
+        ) : (
+          // Legacy Separated View
+          <>
         {/* Payment History Statistics */}
         <View className="px-4 py-4">
           <View className="flex-row gap-3">
@@ -476,6 +638,8 @@ const history = () => {
             </>
           )}
         </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );

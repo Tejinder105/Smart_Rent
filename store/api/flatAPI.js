@@ -1,163 +1,100 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from "axios";
+import axios from 'axios';
+import { API_CONFIG, createDefaultApiClient, handleApiError, testConnection, tokenManager } from './apiClient';
 
-// Update this IP address to match your backend server
-// Use "http://localhost:8000/api/v1" for Android emulator use "http://10.0.2.2:8000/api/v1"
-// For physical device, use your computer's actual IP address
-const BASE_URL = "http://192.168.59.31:8000/api/v1";
+const api = createDefaultApiClient();
+const BASE_URL = API_CONFIG.BASE_URL;
 
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-  timeout: 10000, // 10 second timeout
-});
-
-// Add request interceptor to include auth token
-api.interceptors.request.use(
-  async (config) => {
-    try {
-      const accessToken = await AsyncStorage.getItem('accessToken');
-      if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
-      }
-    } catch (error) {
-      console.error('Error getting access token:', error);
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor to handle 401 errors
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid - clear storage
-      try {
-        await AsyncStorage.removeItem('accessToken');
-        await AsyncStorage.removeItem('refreshToken');
-        console.log('⚠️ Session expired. Please login again.');
-      } catch (err) {
-        console.error('Error clearing tokens:', err);
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Flat API functions
 const flatAPI = {
-  // Create a new flat
+  // Test backend connection
+  testConnection: () => testConnection(BASE_URL),
+
   createFlat: async (flatData) => {
     try {
+      console.log('🏠 Creating flat with data:', flatData);
       const res = await api.post("/flats", flatData);
+      console.log('✅ Flat created successfully:', res.data);
       return res.data;
     } catch (error) {
-      console.error("Create flat error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Create flat');
     }
   },
 
-  // Join flat using join code
   joinFlat: async (joinCode) => {
     try {
+      console.log('🔑 Joining flat with code:', joinCode);
       const res = await api.post("/flats/join", { joinCode });
+      console.log('✅ Joined flat successfully:', res.data);
       return res.data;
     } catch (error) {
-      console.error("Join flat error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Join flat');
     }
   },
 
-  // Get user's current flat
   getUserFlat: async () => {
     try {
-      console.log('🔍 Fetching user flat from:', `${BASE_URL}/flats/current`);
+      console.log('🔍 Fetching user flat...');
+      
+      // Verify token exists before making request
+      const accessToken = await tokenManager.getAccessToken();
+      if (!accessToken) {
+        throw new Error('No authentication token found. Please login again.');
+      }
+      
       const res = await api.get("/flats/current");
       console.log('✅ User flat fetched successfully:', res.data);
       return res.data;
     } catch (error) {
-      console.error("❌ Get user flat error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        baseURL: BASE_URL
-      });
-      
-      // Provide more specific error messages
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('Request timeout - Backend server may be slow or unreachable');
-      } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-        throw new Error('Network Error - Cannot connect to backend server. Please check if backend is running.');
-      } else if (error.response?.status === 401) {
-        throw new Error('Authentication failed - Please login again');
-      } else if (error.response?.status === 404) {
-        throw new Error('API endpoint not found');
+      // User has no flat yet - this is not an error
+      if (error.response?.status === 404) {
+        console.log('ℹ️ User has no flat yet');
+        return { data: null };
       }
-      
-      throw error;
+      handleApiError(error, 'Get user flat');
     }
   },
 
-  // Get flat preview by join code (public endpoint)
   getFlatPreview: async (joinCode) => {
     try {
       const res = await axios.get(`${BASE_URL}/flats/preview/${joinCode}`);
       return res.data;
     } catch (error) {
-      console.error("Get flat preview error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Get flat preview');
     }
   },
 
-  // Update flat details (admin only)
   updateFlat: async (flatId, updateData) => {
     try {
       const res = await api.put(`/flats/${flatId}`, updateData);
       return res.data;
     } catch (error) {
-      console.error("Update flat error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Update flat');
     }
   },
 
-  // Invitation functionality removed - only join codes are supported
-
-  // Leave flat
   leaveFlat: async (flatId) => {
     try {
       const res = await api.post(`/flats/${flatId}/leave`);
       return res.data;
     } catch (error) {
-      console.error("Leave flat error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Leave flat');
     }
   },
 
-  // Delete flat (admin only)
   deleteFlat: async (flatId) => {
     try {
       const res = await api.delete(`/flats/${flatId}`);
       return res.data;
     } catch (error) {
-      console.error("Delete flat error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Delete flat');
     }
   },
 
-  // Get flat members
   getFlatMembers: async (flatId) => {
     try {
       const res = await api.get(`/flats/${flatId}/members`);
       return res.data;
     } catch (error) {
-      console.error("Get flat members error:", error.response?.data || error.message);
-      throw error;
+      handleApiError(error, 'Get flat members');
     }
   },
 };

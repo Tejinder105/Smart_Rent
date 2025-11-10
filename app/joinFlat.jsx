@@ -32,12 +32,10 @@ const JoinFlat = () => {
   const [inputCode, setInputCode] = useState('');
 
   useEffect(() => {
-    // Reset join process when component mounts
     dispatch(resetJoinProcess());
   }, [dispatch]);
 
   const handleCodeChange = (code) => {
-    // Convert to uppercase and limit to 6 characters
     const formattedCode = code.toUpperCase().slice(0, 6);
     setInputCode(formattedCode);
     dispatch(setJoinCode(formattedCode));
@@ -52,7 +50,6 @@ const JoinFlat = () => {
     try {
       await dispatch(fetchFlatPreview(inputCode));
     } catch (error) {
-      // Error is handled by Redux
     }
   };
 
@@ -63,25 +60,33 @@ const JoinFlat = () => {
     }
 
     try {
+      console.log('📤 Attempting to join flat with code:', inputCode);
       const resultAction = await dispatch(joinFlat(inputCode));
+      
+      console.log('📥 Join flat result:', resultAction);
       
       if (joinFlat.fulfilled.match(resultAction)) {
         const joinedFlat = resultAction.payload;
+        console.log('✅ Joined flat successfully:', joinedFlat);
+        
         Alert.alert(
           'Welcome to the Flat! 🎉',
           `You have successfully joined "${joinedFlat.name}"`,
           [
             {
               text: 'Continue',
-              onPress: () => router.replace('/(tabs)/flatmates')
+              onPress: () => router.replace('/(tabs)')
             }
           ]
         );
       } else {
-        Alert.alert('Join Failed', resultAction.payload || 'Failed to join flat');
+        console.error('❌ Join flat failed:', resultAction);
+        const errorMessage = resultAction.payload || resultAction.error?.message || 'Failed to join flat';
+        Alert.alert('Join Failed', errorMessage);
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      console.error('❌ Exception during join flat:', error);
+      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
     }
   };
 
