@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
-import { Bell, PlusCircleIcon, Wallet, TrendingUp, TrendingDown, AlertCircle } from "lucide-react-native";
+import { AlertCircle, Bell, PlusCircleIcon, TrendingDown, TrendingUp, Wallet } from "lucide-react-native";
 import React, { useEffect } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View, Alert, TextInput } from "react-native";
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
+import { fetchCurrentBudgetStatus, updateFlatBudget } from "../../store/slices/budgetSlice";
 import { fetchExpenseStats, fetchUserExpenses } from "../../store/slices/expenseSlice";
 import { fetchUserFlat } from "../../store/slices/flatSlice";
-import { fetchCurrentBudgetStatus, updateFlatBudget } from "../../store/slices/budgetSlice";
 
 export default function Index() {
   const insets = useSafeAreaInsets();

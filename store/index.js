@@ -5,10 +5,10 @@ import flatReducer from './slices/flatSlice';
 import paymentReducer from './slices/paymentSlice';
 // New integrated APIs
 import billReducer from './slices/billSlice';
+import budgetReducer from './slices/budgetSlice';
 import notificationReducer from './slices/notificationSlice';
 import reportReducer from './slices/reportSlice';
 import transactionReducer from './slices/transactionSlice';
-import budgetReducer from './slices/budgetSlice';
 
 export const store = configureStore({
   reducer: {
