@@ -1,4 +1,5 @@
-import { createDefaultApiClient, handleApiError } from './apiClient';
+import * as FileSystem from 'expo-file-system/legacy';
+import { createDefaultApiClient, handleApiError, tokenManager } from './apiClient';
 
 const api = createDefaultApiClient();
 
@@ -92,27 +93,98 @@ const billAPI = {
    * @returns {Promise} Extracted bill data
    */
   scanBill: async (imageFile) => {
+    console.log('═══════════════════════════════════════');
+    console.log('🚀 SCAN BILL API CALL STARTED');
+    console.log('═══════════════════════════════════════');
+    
     try {
-      console.log('📷 Scanning bill image...');
+      console.log('📷 Step 1: Scanning bill image...');
+      console.log('📁 Image details:', JSON.stringify(imageFile, null, 2));
       
-      const formData = new FormData();
-      formData.append('billImage', {
-        uri: imageFile.uri,
-        type: imageFile.type || 'image/jpeg',
-        name: imageFile.fileName || 'bill.jpg',
+      // Get access token
+      console.log('🔑 Step 2: Getting access token...');
+      const token = await tokenManager.getAccessToken();
+      console.log('🔑 Token retrieved:', token ? `${token.substring(0, 20)}...` : 'NULL');
+      
+      if (!token) {
+        throw new Error('No authentication token available. Please login again.');
+      }
+
+      // Use FileSystem.uploadAsync for proper multipart upload
+      const uploadUrl = 'http://192.168.1.11:8000/api/bills/scan';
+      
+      console.log('📤 Step 3: Preparing upload...');
+      console.log('📤 Upload URL:', uploadUrl);
+      console.log('📤 File URI:', imageFile.uri);
+      console.log('📤 Field name: billImage');
+      
+      console.log('⏳ Step 4: Starting file upload...');
+      
+      // Using legacy API which supports uploadAsync
+      const uploadResult = await FileSystem.uploadAsync(uploadUrl, imageFile.uri, {
+        fieldName: 'billImage',
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
-      const res = await api.post('/bills/scan', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 60000, // 60s for OCR processing
-      });
+      console.log('📥 Step 5: Upload complete!');
+      console.log('📥 Response status:', uploadResult.status);
+      console.log('📥 Response headers:', JSON.stringify(uploadResult.headers, null, 2));
+      console.log('📥 Response body (raw):', uploadResult.body);
+
+      // Check for non-200 status
+      if (uploadResult.status >= 400) {
+        console.error('❌ Server returned error status:', uploadResult.status);
+        let errorMessage = `Upload failed with status ${uploadResult.status}`;
+        try {
+          const errorData = JSON.parse(uploadResult.body);
+          console.error('❌ Error data parsed:', errorData);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          console.error('❌ Could not parse error response');
+          console.error('❌ Raw response:', uploadResult.body);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse response
+      console.log('✅ Step 6: Parsing successful response...');
+      const response = JSON.parse(uploadResult.body);
+      console.log('✅ Parsed response:', JSON.stringify(response, null, 2));
       
-      console.log('✅ Bill scanned successfully:', res.data);
-      return res.data;
+      console.log('═══════════════════════════════════════');
+      console.log('✅ SCAN BILL API CALL COMPLETED');
+      console.log('═══════════════════════════════════════');
+      
+      return response;
     } catch (error) {
-      handleApiError(error, 'Scan bill');
+      console.log('═══════════════════════════════════════');
+      console.error('❌ SCAN BILL API CALL FAILED');
+      console.log('═══════════════════════════════════════');
+      console.error('❌ Error type:', error.constructor.name);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      
+      // Provide more specific error messages
+      if (error.message?.includes('Network request failed')) {
+        const betterError = new Error('Cannot connect to server. Please check your connection and ensure backend is running.');
+        console.error('❌ Throwing:', betterError.message);
+        throw betterError;
+      } else if (error.message?.includes('token')) {
+        const betterError = new Error('Authentication failed. Please logout and login again.');
+        console.error('❌ Throwing:', betterError.message);
+        throw betterError;
+      } else if (error.message?.includes('Upload failed')) {
+        const betterError = new Error(`Server error: ${error.message}`);
+        console.error('❌ Throwing:', betterError.message);
+        throw betterError;
+      }
+      
+      console.error('❌ Re-throwing original error');
+      throw error;
     }
   },
 

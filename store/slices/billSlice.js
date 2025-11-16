@@ -66,10 +66,15 @@ export const scanBill = createAsyncThunk(
   'bill/scanBill',
   async (imageFile, { rejectWithValue }) => {
     try {
+      console.log('🔄 Redux scanBill action started');
       const response = await billAPI.scanBill(imageFile);
-      return response.data;
+      console.log('✅ Redux scanBill action succeeded:', response);
+      return response;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to scan bill');
+      console.error('❌ Redux scanBill action failed:', error);
+      const errorMessage = error.message || error.response?.data?.message || 'Failed to scan bill';
+      console.error('❌ Error message:', errorMessage);
+      return rejectWithValue(errorMessage);
     }
   }
 );

@@ -1,11 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-// Base configuration
-const API_CONFIG = {
-  BASE_URL: 'http://10.233.236.31:8000/api',
-  V1_BASE_URL: 'http://10.233.236.31:8000/api/v1',
-  TIMEOUT: 10000,
+const LOCAL_URL = 'http://192.168.1.11:8000';
+const PROD_URL  = 'https://backend-production-82e5.up.railway.app';
+
+const BASE_URL = LOCAL_URL; 
+
+export const API_CONFIG = {
+  BASE_URL: `${BASE_URL}/api`,
+  V1_BASE_URL: `${BASE_URL}/api/v1`,
+  V2_BASE_URL: `${BASE_URL}/api/v2`,
+  TIMEOUT: 30000, 
   HEADERS: {
     'Content-Type': 'application/json',
   },
@@ -122,6 +127,11 @@ export const createApiClient = (baseURL = API_CONFIG.BASE_URL) => {
 export const createV1ApiClient = () => createApiClient(API_CONFIG.V1_BASE_URL);
 
 /**
+ * Create API client for v2 endpoints (Optimized)
+ */
+export const createV2ApiClient = () => createApiClient(API_CONFIG.V2_BASE_URL);
+
+/**
  * Create API client for default endpoints (no version)
  */
 export const createDefaultApiClient = () => createApiClient(API_CONFIG.BASE_URL);
@@ -192,7 +202,9 @@ export const handleApiError = (error, operation) => {
 export const testConnection = async (baseURL = API_CONFIG.BASE_URL) => {
   try {
     console.log('🔌 Testing backend connection to:', baseURL);
-    await axios.get(`${baseURL}/health`, { timeout: 5000 });
+    // Remove /api from baseURL for health check since it's at root /health
+    const healthUrl = baseURL.replace('/api', '');
+    await axios.get(`${healthUrl}/health`, { timeout: 5000 });
     console.log('✅ Backend is reachable');
     return true;
   } catch (error) {
@@ -200,9 +212,6 @@ export const testConnection = async (baseURL = API_CONFIG.BASE_URL) => {
     return false;
   }
 };
-
-// Export configuration for reference
-export { API_CONFIG };
 
 // Default export: main API client
 export default createDefaultApiClient();

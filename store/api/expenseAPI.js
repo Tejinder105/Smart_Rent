@@ -92,6 +92,44 @@ const expenseAPI = {
     } catch (error) {
       handleApiError(error, 'Get available flatmates');
     }
+  },
+
+  // ========== NEW UNIFIED ENDPOINTS ==========
+  
+  createUnifiedExpense: async (expenseData) => {
+    try {
+      const res = await api.post("/expenses/unified", expenseData);
+      return res.data;
+    } catch (error) {
+      handleApiError(error, 'Create unified expense');
+    }
+  },
+
+  recordBulkPayment: async (paymentData) => {
+    try {
+      const res = await api.post("/expenses/pay", paymentData);
+      return res.data;
+    } catch (error) {
+      handleApiError(error, 'Record bulk payment');
+    }
+  },
+
+  getUserDues: async (flatId) => {
+    try {
+      const res = await api.get("/expenses/dues", { params: { flatId } });
+      return res.data;
+    } catch (error) {
+      handleApiError(error, 'Get user dues');
+    }
+  },
+
+  getExpenseHistory: async (params = {}) => {
+    try {
+      const res = await api.get("/expenses/history", { params });
+      return res.data;
+    } catch (error) {
+      handleApiError(error, 'Get expense history');
+    }
   }
 };
 

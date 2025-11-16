@@ -64,9 +64,12 @@ const flatAPI = {
 
   updateFlat: async (flatId, updateData) => {
     try {
+      console.log('📝 Updating flat:', flatId, 'with data:', updateData);
       const res = await api.put(`/flats/${flatId}`, updateData);
+      console.log('✅ Flat updated successfully:', res.data);
       return res.data;
     } catch (error) {
+      console.error('❌ Update flat error:', error);
       handleApiError(error, 'Update flat');
     }
   },

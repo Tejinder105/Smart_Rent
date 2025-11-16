@@ -1,6 +1,6 @@
 
 export const CONFIG = {
-  API_BASE_URL: "http://10.172.17.31:8000/api",
+  API_BASE_URL: "http://192.168.1.11:8000/api",
   
   DEVELOPMENT: {
     API_BASE_URL: "http://localhost:8000/api"
