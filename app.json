@@ -4,7 +4,7 @@
     "slug": "Smart_Rent",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.jpg",
+    "icon": "./assets/images/logo.png",
     "scheme": "smartrent",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -39,14 +39,19 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#22c55e",
-          "sounds": ["default"],
-          "mode": "production"
+          "color": "#22c55e"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c850e4c5-2406-4ef9-883b-a917eb388c40"
+      }
     }
   }
 }
