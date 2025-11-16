@@ -1,10 +1,11 @@
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, StatusBar, Text, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { ReduxProvider } from "../store/Provider";
 import { useAuthPersistence } from "../store/hooks/useAuthPersistence";
+import useTheme from "../store/hooks/useTheme";
 import { fetchUserFlat } from "../store/slices/flatSlice";
 import notificationPoller from "../utils/notificationPoller";
 import notificationService from "../utils/notificationService";
@@ -13,6 +14,7 @@ import "./global.css";
 function AppLayout() {
   const { status, isLoading: authLoading } = useSelector((state) => state.auth);
   const { currentFlat, loading: flatLoading } = useSelector((state) => state.flat);
+  const { isDark } = useTheme();
   const router = useRouter();
   const segments = useSegments();
   const dispatch = useDispatch();
@@ -30,10 +32,18 @@ function AppLayout() {
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        try {
+          Notifications.removeNotificationSubscription(notificationListener.current);
+        } catch (error) {
+          console.log('Error removing notification listener:', error);
+        }
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        try {
+          Notifications.removeNotificationSubscription(responseListener.current);
+        } catch (error) {
+          console.log('Error removing response listener:', error);
+        }
       }
     };
   }, [status, authLoading]);
@@ -112,50 +122,66 @@ function AppLayout() {
     const inTabsGroup = segments[0] === '(tabs)';
     const isCreatingOrJoining = segments[0] === 'createFlat' || segments[0] === 'joinFlat';
 
-    if (!status) {
-      // Not authenticated - redirect to auth
-      if (!inAuthGroup) {
-        router.replace("/auth");
+    // Use setTimeout to ensure navigation happens after current render
+    setTimeout(() => {
+      try {
+        if (!status) {
+          // Not authenticated - redirect to auth
+          if (!inAuthGroup) {
+            router.replace("/auth");
+          }
+        } else if (!currentFlat) {
+          // Authenticated but no flat - redirect to welcome (unless creating/joining)
+          if (!inWelcomeGroup && !isCreatingOrJoining) {
+            router.replace("/welcome");
+          }
+        } else {
+          // Has flat - allow tabs access
+          if (inAuthGroup || inWelcomeGroup) {
+            router.replace("/(tabs)");
+          }
+        }
+      } catch (error) {
+        console.log('Navigation error:', error);
       }
-    } else if (!currentFlat) {
-      // Authenticated but no flat - redirect to welcome (unless creating/joining)
-      if (!inWelcomeGroup && !isCreatingOrJoining) {
-        router.replace("/welcome");
-      }
-    } else {
-      // Has flat - allow tabs access
-      if (inAuthGroup || inWelcomeGroup) {
-        router.replace("/(tabs)");
-      }
-    }
+    }, 100);
   }, [status, authLoading, currentFlat, flatLoading, segments, isNavigationReady]);
 
   // Show loading only during auth loading
   if (authLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
-        <ActivityIndicator size="large" color="#22c55e" />
-        <Text className="mt-4 text-gray-600">Loading...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#121212' : '#FFFFFF' }}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#121212' : '#FFFFFF'} />
+        <ActivityIndicator size="large" color="#00C471" />
+        <Text style={{ marginTop: 16, color: isDark ? '#8A8A8A' : '#6B7785' }}>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="auth" />
-      <Stack.Screen name="welcome" />
-      <Stack.Screen name="reminders" />
-      <Stack.Screen name="settings" />
-      <Stack.Screen name="payDues" />
-      <Stack.Screen name="splitExpense" />
-      <Stack.Screen name="addFlatmate" />
-      <Stack.Screen name="createFlat" />
-      <Stack.Screen name="joinFlat" />
-      <Stack.Screen name="scanBill" />
-      <Stack.Screen name="createBill" />
-    </Stack>
+    <>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#121212' : '#FFFFFF'} />
+      <Stack screenOptions={{ 
+        headerShown: false,
+        contentStyle: { backgroundColor: isDark ? '#121212' : '#F5F7FA' }
+      }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="auth" />
+        <Stack.Screen name="welcome" />
+        <Stack.Screen name="reminders" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="payDues" />
+        <Stack.Screen name="splitExpense" />
+        <Stack.Screen name="addFlatmate" />
+        <Stack.Screen name="createFlat" />
+        <Stack.Screen name="joinFlat" />
+        <Stack.Screen name="scanBill" />
+        <Stack.Screen name="createBill" />
+        <Stack.Screen name="flatDetails" />
+        <Stack.Screen name="budget" />
+      </Stack>
+    </>
   );
 }
 

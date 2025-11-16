@@ -9,7 +9,7 @@ export default function Index() {
   if (authLoading || flatLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-white">
-        <ActivityIndicator size="large" color="#22c55e" />
+        <ActivityIndicator size="large" color="#00C471" />
       </View>
     );
   }

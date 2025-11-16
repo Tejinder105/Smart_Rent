@@ -17,19 +17,26 @@ import {
     ScrollView,
     Switch,
     Text,
-    TouchableOpacity,
     View
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+import { Button, Card, PageHeader, SectionTitle } from '../components/ui';
+import { getColors } from '../constants/colors';
+import { toggleTheme } from '../store/slices/themeSlice';
 
 const settings = () => {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const dispatch = useDispatch();
+  const { isDark } = useSelector((state) => state.theme);
+  const colors = getColors(isDark);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(true);
   const [autoPayEnabled, setAutoPayEnabled] = useState(false);
+
+  const handleToggleDarkMode = () => {
+    dispatch(toggleTheme());
+  };
 
   const handleGoBack = () => {
     router.back();
@@ -59,56 +66,60 @@ const settings = () => {
   };
 
   const SettingsRow = ({ icon: Icon, title, subtitle, onPress, showToggle = false, toggleValue, onToggleChange, iconBgColor, iconColor }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      className="flex-row items-center p-4 border-b border-gray-100"
-      disabled={showToggle}
+    <Card
+      variant={showToggle ? "flat" : "interactive"}
+      onPress={showToggle ? undefined : onPress}
+      style={{ 
+        borderBottomWidth: 1, 
+        borderBottomColor: colors.border, 
+        borderRadius: 0,
+        backgroundColor: colors.card
+      }}
     >
-      <View className={`w-10 h-10 ${iconBgColor} rounded-full items-center justify-center mr-4`}>
-        <Icon size={20} color={iconColor} />
-      </View>
-      <View className="flex-1">
-        <Text className="text-gray-900 font-medium">{title}</Text>
-        {subtitle && (
-          <Text className="text-gray-500 text-sm mt-1">{subtitle}</Text>
+      <View className="flex-row items-center">
+        <View className={`w-10 h-10 ${iconBgColor} rounded-full items-center justify-center mr-4`}>
+          <Icon size={20} color={iconColor} />
+        </View>
+        <View className="flex-1">
+          <Text style={{ color: colors.text, fontWeight: '500' }}>{title}</Text>
+          {subtitle && (
+            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 4 }}>{subtitle}</Text>
+          )}
+        </View>
+        {showToggle ? (
+          <Switch
+            value={toggleValue}
+            onValueChange={onToggleChange}
+            trackColor={{ false: isDark ? '#2A2A2A' : '#EDF0F4', true: '#00C471' }}
+            thumbColor={toggleValue ? '#FFFFFF' : '#FFFFFF'}
+            ios_backgroundColor={isDark ? '#2A2A2A' : '#EDF0F4'}
+          />
+        ) : (
+          <ChevronRight size={20} color={colors.textTertiary} />
         )}
       </View>
-      {showToggle ? (
-        <Switch
-          value={toggleValue}
-          onValueChange={onToggleChange}
-          trackColor={{ false: '#f3f4f6', true: '#22c55e' }}
-          thumbColor={toggleValue ? '#ffffff' : '#ffffff'}
-          ios_backgroundColor="#f3f4f6"
-        />
-      ) : (
-        <ChevronRight size={20} color="#9ca3af" />
-      )}
-    </TouchableOpacity>
+    </Card>
   );
 
   return (
-    <View className="flex-1 bg-gray-100">
-      {/* Header */}
-      <View className="px-4 py-4 bg-white" style={{ paddingTop: insets.top + 12 }}>
-        <View className="flex-row items-center">
-          <TouchableOpacity 
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <PageHeader
+        title="Settings"
+        leftAction={
+          <Button
+            variant="ghost"
+            size="sm"
             onPress={handleGoBack}
-            className="mr-4 w-10 h-10 items-center justify-center"
-          >
-            <ChevronLeft size={24} color="#374151" />
-          </TouchableOpacity>
-          <Text className="flex-1 text-[26px] font-bold text-gray-900 text-left  mr-14">
-            Settings
-          </Text>
-        </View>
-      </View>
+            leftIcon={<ChevronLeft size={24} color={colors.text} />}
+          />
+        }
+      />
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Notifications */}
         <View className="mx-4 mt-6 mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Notifications</Text>
-          <View className="bg-white rounded-2xl shadow-sm">
+          <SectionTitle title="Notifications" variant="compact" />
+          <View style={{ backgroundColor: colors.card, borderRadius: 16, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, overflow: 'hidden' }}>
             <SettingsRow
               icon={Bell}
               title="Push Notifications"
@@ -116,7 +127,7 @@ const settings = () => {
               showToggle={true}
               toggleValue={notificationsEnabled}
               onToggleChange={setNotificationsEnabled}
-              iconBgColor="bg-blue-100"
+              iconBgColor="bg-primary-100"
               iconColor="#3b82f6"
             />
           </View>
@@ -124,15 +135,15 @@ const settings = () => {
 
         {/* Appearance */}
         <View className="mx-4 mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Appearance</Text>
-          <View className="bg-white rounded-2xl shadow-sm">
+          <SectionTitle title="Appearance" variant="compact" />
+          <View style={{ backgroundColor: colors.card, borderRadius: 16, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, overflow: 'hidden' }}>
             <SettingsRow
               icon={Moon}
               title="Dark Mode"
-              subtitle="Switch to dark theme"
+              subtitle={isDark ? "Currently enabled" : "Currently disabled"}
               showToggle={true}
-              toggleValue={darkModeEnabled}
-              onToggleChange={setDarkModeEnabled}
+              toggleValue={isDark}
+              onToggleChange={handleToggleDarkMode}
               iconBgColor="bg-purple-100"
               iconColor="#8b5cf6"
             />
@@ -141,7 +152,7 @@ const settings = () => {
               title="Language"
               subtitle="English (US)"
               onPress={handleLanguage}
-              iconBgColor="bg-green-100"
+              iconBgColor="bg-success-100"
               iconColor="#16a34a"
             />
           </View>
@@ -149,8 +160,8 @@ const settings = () => {
 
         {/* Security */}
         <View className="mx-4 mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Security</Text>
-          <View className="bg-white rounded-2xl shadow-sm">
+          <SectionTitle title="Security" variant="compact" />
+          <View style={{ backgroundColor: colors.card, borderRadius: 16, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, overflow: 'hidden' }}>
             <SettingsRow
               icon={Shield}
               title="Biometric Login"
@@ -158,7 +169,7 @@ const settings = () => {
               showToggle={true}
               toggleValue={biometricEnabled}
               onToggleChange={setBiometricEnabled}
-              iconBgColor="bg-orange-100"
+              iconBgColor="bg-warning-100"
               iconColor="#ea580c"
             />
           </View>
@@ -166,14 +177,14 @@ const settings = () => {
 
         {/* Payment */}
         <View className="mx-4 mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Payment</Text>
-          <View className="bg-white rounded-2xl shadow-sm">
+          <SectionTitle title="Payment" variant="compact" />
+          <View style={{ backgroundColor: colors.card, borderRadius: 16, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, overflow: 'hidden' }}>
             <SettingsRow
               icon={CreditCard}
               title="Payment Methods"
               subtitle="Manage your payment cards and methods"
               onPress={handlePaymentMethods}
-              iconBgColor="bg-blue-100"
+              iconBgColor="bg-primary-100"
               iconColor="#3b82f6"
             />
             <SettingsRow
@@ -183,7 +194,7 @@ const settings = () => {
               showToggle={true}
               toggleValue={autoPayEnabled}
               onToggleChange={setAutoPayEnabled}
-              iconBgColor="bg-green-100"
+              iconBgColor="bg-success-100"
               iconColor="#16a34a"
             />
           </View>
@@ -191,14 +202,14 @@ const settings = () => {
 
         {/* Data & Privacy */}
         <View className="mx-4 mb-6">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Data & Privacy</Text>
-          <View className="bg-white rounded-2xl shadow-sm">
+          <SectionTitle title="Data & Privacy" variant="compact" />
+          <View style={{ backgroundColor: colors.card, borderRadius: 16, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, overflow: 'hidden' }}>
             <SettingsRow
               icon={Download}
               title="Export Data"
               subtitle="Download your personal data"
               onPress={handleDataExport}
-              iconBgColor="bg-cyan-100"
+              iconBgColor="bg-info-100"
               iconColor="#0891b2"
             />
             <SettingsRow
@@ -206,7 +217,7 @@ const settings = () => {
               title="Delete Account"
               subtitle="Permanently delete your account and data"
               onPress={handleDeleteAccount}
-              iconBgColor="bg-red-100"
+              iconBgColor="bg-danger-100"
               iconColor="#dc2626"
             />
           </View>
@@ -214,8 +225,8 @@ const settings = () => {
 
         {/* About */}
         <View className="mx-4 mb-8">
-          <Text className="text-lg font-bold text-gray-900 mb-3">About</Text>
-          <View className="bg-white rounded-2xl shadow-sm">
+          <SectionTitle title="About" variant="compact" />
+          <View style={{ backgroundColor: colors.card, borderRadius: 16, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, overflow: 'hidden' }}>
             <SettingsRow
               icon={Info}
               title="App Information"
@@ -229,8 +240,8 @@ const settings = () => {
 
         {/* App Version Footer */}
         <View className="items-center pb-8">
-          <Text className="text-gray-400 text-sm">Smart Rent v1.0.0</Text>
-          <Text className="text-gray-400 text-xs mt-1">Built with ❤️ for modern living</Text>
+          <Text style={{ color: colors.textTertiary, fontSize: 14 }}>Smart Rent v1.0.0</Text>
+          <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 4 }}>Built with ❤️ for modern living</Text>
         </View>
       </ScrollView>
     </View>

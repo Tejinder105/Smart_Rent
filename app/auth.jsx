@@ -2,16 +2,20 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  View,
 } from "react-native";
 import { useDispatch, useSelector } from 'react-redux';
+import {
+  Button,
+  Card,
+  Input
+} from '../components/ui';
 import authAPI from '../store/api/authAPI';
 import { clearError, login, setError, setLoading } from '../store/slices/authSlice';
 
@@ -132,82 +136,92 @@ const auth = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       className="flex-1 bg-white"
     >
-      <View className="flex-1 justify-center px-6">
-        <View className="items-center mb-8">
-          <Image
-            source={require("../assets/images/logo.jpg")}
-            className="w-48 h-24 mb-2"
-            resizeMode="contain"
-          />
-        </View>
+      <ScrollView
+        contentContainerStyle={{ paddingVertical: 40 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View className="px-6 pt-12">
+          <View className="items-center mb-8">
+            <Image
+              source={require("../assets/images/logo.png")}
+              className="w-48 h-24 mb-2"
+              resizeMode="contain"
+            />
+          </View>
 
-        <View className="mb-8">
-          <Text className="text-3xl font-bold text-center mb-3 text-gray-900">
-            {isSignUp ? "Create an account" : "Welcome Back!"}
-          </Text>
-        </View>
+          <View className="mb-8">
+            <Text className="text-3xl font-bold text-center mb-3 text-gray-900">
+              {isSignUp ? "Create an account" : "Welcome Back!"}
+            </Text>
+          </View>
 
-        {isSignUp && (
-          <View className="mb-6">
-            <TextInput
+          {isSignUp && (
+            <Input
               autoCapitalize="none"
               keyboardType="default"
               placeholder="Username"
               onChangeText={setUserName}
               value={userName}
-              className="border rounded-lg border-gray-300 px-4 py-3 text-base text-gray-900"
+              className="mb-6"
             />
-          </View>
-        )}
+          )}
 
-        <View className="mb-6">
-          <TextInput
+          <Input
             autoCapitalize="none"
             keyboardType="email-address"
             placeholder="Email address"
             onChangeText={setEmail}
             value={email}
-            className="border rounded-lg border-gray-300 px-4 py-3 text-base text-gray-900"
+            className="mb-6"
+            returnKeyType="next"
           />
-        </View>
 
-        <View className="mb-8">
-          <TextInput
+          <Input
             autoCapitalize="none"
             secureTextEntry
             onChangeText={setPassword}
             value={password}
             placeholder="Password"
-            className="border rounded-lg border-gray-300 px-4 py-3 text-base text-gray-900"
+            className="mb-8"
+            returnKeyType="done"
+            onSubmitEditing={handleAuth}
           />
+
+          {/* Error Message */}
+          {error && (
+            <Card variant="outline" className="mb-4 bg-danger-50 border-danger-200">
+              <Text className="text-danger-600 text-center">{error}</Text>
+            </Card>
+          )}
+
+          {/* Login Button */}
+          <Button
+            variant="primary"
+            size="lg"
+            onPress={handleAuth}
+            disabled={isLoading}
+            loading={isLoading}
+            className="mb-4"
+          >
+            {isSignUp ? "Sign Up" : "Login"}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="md"
+            onPress={handleSwitchMode}
+            className="mb-8"
+          >
+            <Text className="text-primary-600 text-center text-base">
+              {isSignUp
+                ? "Already have an account? Sign In"
+                : "Don't have an account? Sign Up"}
+            </Text>
+          </Button>
         </View>
-
-        {/* Error Message */}
-        {error && (
-          <View className="mb-4 p-3 bg-red-100 rounded-lg">
-            <Text className="text-red-600 text-center">{error}</Text>
-          </View>
-        )}
-
-        {/* Login Button */}
-        <TouchableOpacity
-          onPress={handleAuth}
-          disabled={isLoading}
-          className={`py-4 rounded-lg mb-4 ${isLoading ? 'bg-gray-400' : 'bg-green-500'}`}
-        >
-          <Text className="text-white text-center font-semibold text-lg">
-            {isLoading ? 'Loading...' : (isSignUp ? "Sign Up" : "Login")}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleSwitchMode} className="mb-8">
-          <Text className="text-green-900 text-center text-base">
-            {isSignUp
-              ? "Already have an account? Sign In"
-              : "Don't have an account? Sign Up"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };

@@ -1,53 +1,87 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from "expo-router";
-import { AlertCircle, Bell, PlusCircleIcon, TrendingDown, TrendingUp, Wallet } from "lucide-react-native";
-import React, { useEffect } from "react";
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect, useRouter } from "expo-router";
+import { Bell, ChevronRight, DollarSign, PlusCircleIcon, Receipt, TrendingDown, TrendingUp, Wallet } from "lucide-react-native";
+import React, { useCallback, useEffect, useMemo } from "react";
+import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCurrentBudgetStatus, updateFlatBudget } from "../../store/slices/budgetSlice";
-import { fetchExpenseStats, fetchUserExpenses } from "../../store/slices/expenseSlice";
+import {
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  SectionTitle,
+  StatCard
+} from "../../components/ui";
+import { useTheme } from "../../store/hooks/useTheme";
+import { getIconColor } from "../../utils/themeUtils";
+// V2 Unified API - Single call for all dashboard data ⭐
+import {
+  fetchUserDues,
+  invalidateCache,
+  selectFinancials,
+  selectIsCacheValid,
+  selectLoading as selectUnifiedLoading
+} from "../../store/slices/expenseUnifiedSlice";
 import { fetchUserFlat } from "../../store/slices/flatSlice";
 
 export default function Index() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const dispatch = useDispatch();
+  const { theme } = useTheme();
 
   const { currentFlat, loading: flatLoading } = useSelector((state) => state.flat);
-  const { stats, expenses, loading: expenseLoading } = useSelector((state) => state.expense);
   const { userData } = useSelector((state) => state.auth);
-  const { currentStatus: budgetStatus, loading: budgetLoading } = useSelector((state) => state.budget);
   const user = userData;
 
+  // Memoized styles and colors
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const iconColor = useMemo(() => getIconColor(theme, 'secondary'), [theme]);
+  const accentIconColor = useMemo(() => getIconColor(theme, 'accent'), [theme]);
+
+  // V2 Unified API - Get all financial data from single source ⭐
+  const financials = useSelector(selectFinancials);
+  const unifiedLoading = useSelector(selectUnifiedLoading);
+  const isCacheValid = useSelector(selectIsCacheValid);
+
   const [refreshing, setRefreshing] = React.useState(false);
-  const [editingBudget, setEditingBudget] = React.useState(false);
-  const [budgetInput, setBudgetInput] = React.useState('');
 
   useEffect(() => {
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (currentFlat?._id) {
-      dispatch(fetchCurrentBudgetStatus(currentFlat._id));
-    }
-  }, [currentFlat]);
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Only fetch if cache is invalid (smart caching)
+      if (!isCacheValid && currentFlat?._id) {
+        loadFinancialData();
+      }
+    }, [isCacheValid, currentFlat])
+  );
 
   const loadData = async () => {
-    await Promise.all([
-      dispatch(fetchUserFlat()),
-      dispatch(fetchExpenseStats()),
-      dispatch(fetchUserExpenses({ status: 'active' }))
-    ]);
+    await dispatch(fetchUserFlat());
   };
+
+  const loadFinancialData = async () => {
+    if (currentFlat?._id) {
+      await dispatch(fetchUserDues(currentFlat._id));
+    }
+  };
+
+  // Load financial data when flat is available
+  useEffect(() => {
+    if (currentFlat?._id && !isCacheValid) {
+      loadFinancialData();
+    }
+  }, [currentFlat?._id]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
-    if (currentFlat?._id) {
-      await dispatch(fetchCurrentBudgetStatus(currentFlat._id));
-    }
+    dispatch(invalidateCache()); // Invalidate cache to force refresh
+    await Promise.all([
+      dispatch(fetchUserFlat()),
+      loadFinancialData()
+    ]);
     setRefreshing(false);
   };
   
@@ -63,198 +97,174 @@ export default function Index() {
     router.push("/splitExpense");
   };
 
-  const handleEditBudget = () => {
-    setBudgetInput(currentFlat?.monthlyBudget?.toString() || '0');
-    setEditingBudget(true);
-  };
-
-  const handleSaveBudget = async () => {
-    const budget = parseFloat(budgetInput);
-    if (isNaN(budget) || budget < 0) {
-      Alert.alert('Error', 'Please enter a valid budget amount');
-      return;
-    }
-
-    try {
-      await dispatch(updateFlatBudget({ 
-        flatId: currentFlat._id, 
-        monthlyBudget: budget 
-      })).unwrap();
-      
-      await dispatch(fetchCurrentBudgetStatus(currentFlat._id));
-      await dispatch(fetchUserFlat());
-      
-      setEditingBudget(false);
-      Alert.alert('Success', 'Budget updated successfully');
-    } catch (error) {
-      Alert.alert('Error', error || 'Failed to update budget');
-    }
-  };
-
-  const handleCancelBudget = () => {
-    setEditingBudget(false);
-    setBudgetInput('');
-  };
-
   const totalRent = currentFlat?.rent || 0;
   const totalMembers = currentFlat?.stats?.totalMembers || 1;
   const rentPerPerson = totalMembers > 0 ? totalRent / totalMembers : 0;
 
+  // Extract data from V2 unified financials ⭐
+  const { userDues } = financials;
+  
+  // Calculate spending and budget
+  const monthlyBudget = currentFlat?.monthlyBudget || 0;
+  
+  // User dues from V2 API
+  const billDues = userDues?.billDues || [];
+  const expenseDues = userDues?.expenseDues || [];
+  const totalBillDue = userDues?.totalBillDue || 0;
+  const totalExpenseDue = userDues?.totalExpenseDue || 0;
+  const totalDue = userDues?.totalDue || 0;
+  
+  // Combine all pending dues
+  const pendingExpenses = [...billDues, ...expenseDues];
+  
+  // Calculate payment stats
+  const pendingAmount = totalDue;
+  const paidAmount = 0; // Will be calculated from paid dues if needed
+  const totalOwed = totalDue;
+  const paymentProgress = totalOwed > 0 ? ((totalOwed - pendingAmount) / totalOwed) * 100 : 0;
 
-  const pendingExpenses = expenses.filter((expense, index, self) => {
-    if (!expense.participants || !user) return false;
-    
-    const isFirstOccurrence = self.findIndex(e => e._id === expense._id) === index;
-    if (!isFirstOccurrence) return false;
-    
-    const userParticipant = expense.participants.find(
-      p => p && p.userId && (p.userId._id === user._id || p.userId === user._id)
-    );
-    return userParticipant && !userParticipant.isPaid && expense.status === 'active';
-  });
-
-
-  const pendingAmount = stats.participant?.pendingAmount || 0;
-  const paidAmount = stats.participant?.paidAmount || 0;
-  const totalOwed = stats.participant?.totalOwed || 0;
-
-  const paymentProgress = totalOwed > 0 ? (paidAmount / totalOwed) * 100 : 0;
-
-  const loading = flatLoading || expenseLoading;
+  const loading = flatLoading || unifiedLoading;
   
   return (
-    <View className="flex-1 bg-gray-100">
+    <View style={styles.container}>
+      <StatusBar 
+        barStyle={theme.isDark ? 'light-content' : 'dark-content'} 
+        backgroundColor={theme.colors.background}
+      />
+      
       {/* Header */}
-      <View className="px-4 py-4 bg-white" style={{ paddingTop: insets.top + 12 }}>
-        <View className="flex-row items-center justify-between">
-          <View className="flex-1">
-            <Text className="text-[26px] pl-2 font-bold text-gray-900 text-left">Smart Rent</Text>
-            {user && (
-              <Text className="text-sm pl-2 text-gray-500">Welcome, {user.userName}</Text>
-            )}
-          </View>
+      <PageHeader
+        title="Smart Rent"
+        subtitle={user ? `Welcome, ${user.userName}` : undefined}
+        rightAction={
           <TouchableOpacity 
             onPress={handleNotificationPress}
-            className="w-10 h-10 items-center justify-center rounded-full shadow-sm"
+            style={styles.notificationButton}
           >
-            <Bell size={20} color="#374151" />
+            <Bell size={theme.layout.iconSize.sm} color={iconColor} />
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView 
-        className="flex-1" 
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+            progressBackgroundColor={theme.colors.card}
+          />
         }
       >
-        <View className="p-4">
+        <View style={styles.content}>
           {/* Action Cards */}
-          <View className="flex-row space-x-4 mb-4 gap-2">
-            <TouchableOpacity 
+          <View style={styles.actionCardsRow}>
+            <Card
+              variant="interactive"
               onPress={handlePayDues}
-              className="flex-1 bg-white rounded-2xl p-6 items-center border border-blue-200"
+              style={styles.actionCard}
             >
-              <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mb-3">
-                <Wallet size={24} color="#3B82F6" />
+              <View style={[styles.actionIcon, { backgroundColor: theme.colors.primaryBg }]}>
+                <Wallet size={theme.layout.iconSize.md} color={theme.colors.primary} />
               </View>
-              <Text className="text-blue-600 font-semibold">Pay Dues</Text>
-            </TouchableOpacity>
+              <Text style={[styles.actionText, { color: theme.colors.primary }]}>Pay Dues</Text>
+            </Card>
             
-            <TouchableOpacity 
+            <Card
+              variant="interactive"
               onPress={handleSplitExpense}
-              className="flex-1 bg-white rounded-2xl p-6 items-center border border-blue-200"
+              style={styles.actionCard}
             >
-              <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mb-3">
-                <PlusCircleIcon size={24} color="#3B82F6" />
+              <View style={[styles.actionIcon, { backgroundColor: theme.colors.primaryBg }]}>
+                <PlusCircleIcon size={theme.layout.iconSize.md} color={theme.colors.primary} />
               </View>
-              <Text className="text-blue-600 font-semibold">Split Expense</Text>
-            </TouchableOpacity>
+              <Text style={[styles.actionText, { color: theme.colors.primary }]}>Split Expense</Text>
+            </Card>
           </View>
 
           {loading && !refreshing ? (
-            <View className="bg-white rounded-2xl p-6 mb-6 items-center">
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text className="mt-2 text-gray-600">Loading data...</Text>
-            </View>
+            <Card style={styles.loadingCard}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.loadingText}>Loading data...</Text>
+            </Card>
           ) : (
             <>
               {/* Current Month's Rent */}
               {currentFlat ? (
-                <TouchableOpacity 
+                <Card
+                  variant="interactive"
                   onPress={() => router.push('/flatDetails')}
-                  className="bg-white rounded-2xl p-6 mb-6"
-                  activeOpacity={0.7}
+                  style={styles.flatCard}
                 >
-                  <View className="mb-4">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-1">
-                        <Text className="text-lg font-bold text-gray-900 mb-1">{currentFlat.name}</Text>
-                        <Text className="text-gray-500 text-sm">
+                  <View style={styles.flatHeader}>
+                    <View style={styles.flatHeaderContent}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.flatName}>{currentFlat.name}</Text>
+                        <Text style={styles.flatDate}>
                           {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                         </Text>
                       </View>
-                      <View className="flex-row items-center">
-                        <Text className="text-blue-600 text-sm font-semibold mr-1">View Details</Text>
-                        <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
+                      <View style={styles.viewDetailsButton}>
+                        <Text style={[styles.viewDetailsText, { color: theme.colors.primary }]}>View Details</Text>
+                        <ChevronRight size={theme.layout.iconSize.xs} color={theme.colors.primary} />
                       </View>
                     </View>
                   </View>
                   
-                  <View className="mb-4">
-                    <Text className="text-sm text-gray-600 mb-1">Total Monthly Rent</Text>
-                    <Text className="text-3xl font-bold text-gray-900">₹{totalRent.toFixed(2)}</Text>
+                  <View style={styles.rentSection}>
+                    <Text style={styles.rentLabel}>Total Monthly Rent</Text>
+                    <Text style={styles.rentAmount}>₹{totalRent.toFixed(2)}</Text>
                   </View>
 
-                  <View className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-                    <Text className="text-sm text-blue-800 mb-1">Your Share</Text>
-                    <Text className="text-2xl font-bold text-blue-600">
+                  <View style={[styles.shareCard, { backgroundColor: theme.colors.primaryBg, borderColor: theme.colors.primary }]}>
+                    <Text style={[styles.shareLabel, { color: theme.colors.primary }]}>Your Share</Text>
+                    <Text style={[styles.shareAmount, { color: theme.colors.primary }]}>
                       ₹{rentPerPerson.toFixed(2)}
                     </Text>
-                    <Text className="text-xs text-blue-600 mt-1">
+                    <Text style={[styles.shareSplit, { color: theme.colors.primary }]}>
                       Split among {totalMembers} member{totalMembers !== 1 ? 's' : ''}
                     </Text>
                   </View>
                   
                   {/* Payment Status Section */}
-                  <View className="mb-4">
+                  <View style={styles.paymentSection}>
                     {/* Monthly Rent Bar */}
-                    <View className="mb-4">
-                      <View className="flex-row justify-between items-center mb-2">
-                        <Text className="text-sm font-semibold text-gray-700">Monthly Rent</Text>
-                        <Text className="text-sm text-gray-600">₹{rentPerPerson.toFixed(2)}</Text>
+                    <View style={styles.progressBarContainer}>
+                      <View style={styles.progressBarHeader}>
+                        <Text style={styles.progressBarLabel}>Monthly Rent</Text>
+                        <Text style={styles.progressBarAmount}>₹{rentPerPerson.toFixed(2)}</Text>
                       </View>
-                      <View className="bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <View style={[styles.progressBar, { backgroundColor: theme.colors.backgroundTertiary }]}>
                         <View 
-                          className="bg-purple-500 h-3 rounded-full" 
-                          style={{ width: '0%' }}
+                          style={[styles.progressBarFill, { backgroundColor: theme.colors.warning, width: '0%' }]}
                         />
                       </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-gray-500">Pending</Text>
-                        <Text className="text-xs text-purple-600 font-semibold">Due this month</Text>
+                      <View style={styles.progressBarFooter}>
+                        <Text style={styles.progressBarFooterText}>Pending</Text>
+                        <Text style={[styles.progressBarFooterText, { color: theme.colors.warning, fontWeight: theme.typography.fontWeight.semibold }]}>Due this month</Text>
                       </View>
                     </View>
 
                     {/* Other Expenses Bar */}
                     {totalOwed > 0 && (
-                      <View>
-                        <View className="flex-row justify-between items-center mb-2">
-                          <Text className="text-sm font-semibold text-gray-700">Other Expenses</Text>
-                          <Text className="text-sm text-gray-600">₹{totalOwed.toFixed(2)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View style={styles.progressBarHeader}>
+                          <Text style={styles.progressBarLabel}>Other Expenses</Text>
+                          <Text style={styles.progressBarAmount}>₹{totalOwed.toFixed(2)}</Text>
                         </View>
-                        <View className="bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <View style={[styles.progressBar, { backgroundColor: theme.colors.backgroundTertiary }]}>
                           <View 
-                            className="bg-green-500 h-3 rounded-full" 
-                            style={{ width: `${Math.min(paymentProgress, 100)}%` }}
+                            style={[styles.progressBarFill, { backgroundColor: theme.colors.success, width: `${Math.min(paymentProgress, 100)}%` }]}
                           />
                         </View>
-                        <View className="flex-row justify-between mt-1">
-                          <Text className="text-xs text-green-600 font-semibold">
+                        <View style={styles.progressBarFooter}>
+                          <Text style={[styles.progressBarFooterText, { color: theme.colors.success, fontWeight: theme.typography.fontWeight.semibold }]}>
                             Paid: ₹{paidAmount.toFixed(2)}
                           </Text>
-                          <Text className="text-xs text-red-600 font-semibold">
+                          <Text style={[styles.progressBarFooterText, { color: theme.colors.error, fontWeight: theme.typography.fontWeight.semibold }]}>
                             Pending: ₹{pendingAmount.toFixed(2)}
                           </Text>
                         </View>
@@ -263,211 +273,186 @@ export default function Index() {
                   </View>
                   
                   {/* Make Payment Button */}
-                  <TouchableOpacity 
+                  <Button
+                    variant="primary"
+                    size="lg"
                     onPress={(e) => {
-                      e.stopPropagation?.();
+                      e?.stopPropagation?.();
                       handlePayDues();
                     }}
-                    className="bg-green-500 rounded-xl py-4 items-center"
                   >
-                    <Text className="text-white font-bold text-lg">View Payment Details</Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
+                    View Payment Details
+                  </Button>
+                </Card>
               ) : (
-                <View className="bg-white rounded-2xl p-6 mb-6">
-                  <Text className="text-center text-gray-600 mb-4">
-                    You're not part of any flat yet
-                  </Text>
-                  <View className="flex-row space-x-2 gap-2">
-                    <TouchableOpacity 
-                      onPress={() => router.push('/createFlat')}
-                      className="flex-1 bg-blue-500 rounded-xl py-3 items-center"
-                    >
-                      <Text className="text-white font-semibold">Create Flat</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => router.push('/joinFlat')}
-                      className="flex-1 bg-green-500 rounded-xl py-3 items-center"
-                    >
-                      <Text className="text-white font-semibold">Join Flat</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <EmptyState
+                  icon={<Receipt size={theme.layout.iconSize.lg} color={iconColor} />}
+                  title="No Flat Yet"
+                  message="Create or join a flat to start managing your rent and expenses"
+                  actionLabel="Create Flat"
+                  onAction={() => router.push('/createFlat')}
+                />
               )}
 
-              {/* Budget Tracking Card */}
-              {currentFlat && currentFlat.monthlyBudget > 0 && budgetStatus && (
-                <View className="bg-white rounded-2xl p-6 mb-6">
-                  <View className="flex-row items-center justify-between mb-4">
-                    <Text className="text-lg font-bold text-gray-900">Monthly Budget</Text>
-                    {currentFlat.admin._id === user._id && (
-                      <TouchableOpacity onPress={handleEditBudget}>
-                        <Text className="text-blue-600 font-semibold text-sm">Edit</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {/* Budget Overview */}
-                  <View className="mb-4">
-                    <View className="flex-row justify-between items-center mb-2">
-                      <Text className="text-sm text-gray-600">Budget Set</Text>
-                      <Text className="text-lg font-bold text-gray-900">
-                        ₹{budgetStatus.monthlyBudget?.toFixed(0)}
-                      </Text>
-                    </View>
-
-                    <View className="flex-row justify-between items-center mb-2">
-                      <Text className="text-sm text-gray-600">Spent</Text>
-                      <Text className="text-lg font-bold text-orange-600">
-                        ₹{budgetStatus.actualSpent?.toFixed(0)}
-                      </Text>
-                    </View>
-
-                    <View className="flex-row justify-between items-center">
-                      <Text className="text-sm text-gray-600">Remaining</Text>
-                      <Text className={`text-lg font-bold ${
-                        budgetStatus.remaining >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        ₹{Math.abs(budgetStatus.remaining || 0).toFixed(0)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Progress Bar */}
-                  <View className="mb-4">
-                    <View className="bg-gray-200 rounded-full h-4 overflow-hidden">
-                      <View 
-                        className={`h-4 rounded-full ${
-                          budgetStatus.percentUsed > 100 ? 'bg-red-500' : 
-                          budgetStatus.percentUsed > 80 ? 'bg-orange-500' : 
-                          'bg-green-500'
-                        }`}
-                        style={{ width: `${Math.min(budgetStatus.percentUsed || 0, 100)}%` }}
-                      />
-                    </View>
-                    <View className="flex-row justify-between mt-2">
-                      <View className="flex-row items-center">
-                        {budgetStatus.percentUsed > 100 ? (
-                          <>
-                            <AlertCircle size={14} color="#ef4444" />
-                            <Text className="text-xs text-red-600 font-semibold ml-1">
-                              Over Budget!
-                            </Text>
-                          </>
-                        ) : budgetStatus.percentUsed > 80 ? (
-                          <>
-                            <TrendingUp size={14} color="#f97316" />
-                            <Text className="text-xs text-orange-600 font-semibold ml-1">
-                              {budgetStatus.percentUsed?.toFixed(0)}% Used
-                            </Text>
-                          </>
-                        ) : (
-                          <>
-                            <TrendingDown size={14} color="#22c55e" />
-                            <Text className="text-xs text-green-600 font-semibold ml-1">
-                              {budgetStatus.percentUsed?.toFixed(0)}% Used
-                            </Text>
-                          </>
-                        )}
-                      </View>
-                      <Text className="text-xs text-gray-500">
-                        {new Date().toLocaleDateString('en-US', { month: 'short' })}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Category Breakdown */}
-                  {budgetStatus.categoryBreakdown && Object.keys(budgetStatus.categoryBreakdown).some(k => budgetStatus.categoryBreakdown[k] > 0) && (
-                    <View className="bg-gray-50 rounded-xl p-4">
-                      <Text className="text-sm font-semibold text-gray-700 mb-3">Top Categories</Text>
-                      {Object.entries(budgetStatus.categoryBreakdown)
-                        .filter(([_, amount]) => amount > 0)
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 3)
-                        .map(([category, amount], idx) => (
-                          <View key={idx} className="flex-row justify-between items-center mb-2">
-                            <Text className="text-sm text-gray-600 capitalize">{category}</Text>
-                            <Text className="text-sm font-semibold text-gray-900">
-                              ₹{amount.toFixed(0)}
-                            </Text>
-                          </View>
-                        ))}
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* Set Budget Card - Only if no budget set */}
-              {currentFlat && (!currentFlat.monthlyBudget || currentFlat.monthlyBudget === 0) && currentFlat.admin._id === user._id && (
-                <View className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-2xl p-6 mb-6">
-                  <View className="items-center mb-4">
-                    <View className="w-16 h-16 bg-purple-100 rounded-full items-center justify-center mb-3">
-                      <Wallet size={32} color="#8b5cf6" />
-                    </View>
-                    <Text className="text-lg font-bold text-gray-900 text-center">
-                      Set Monthly Budget
-                    </Text>
-                    <Text className="text-sm text-gray-600 text-center mt-2">
-                      Track your flat's spending and stay within budget
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity 
-                    onPress={handleEditBudget}
-                    className="bg-purple-500 rounded-xl py-4 items-center"
+              {/* Monthly Budget Card */}
+              {currentFlat && monthlyBudget > 0 && (() => {
+                // Use data from V2 unified API ⭐
+                const spent = totalDue;
+                const budget = monthlyBudget;
+                const percentage = budget > 0 ? (spent / budget) * 100 : 0;
+                const remaining = budget - spent;
+                
+                return (
+                  <Card
+                    variant="interactive"
+                    onPress={() => router.push('/budget')}
+                    style={[styles.budgetCard, { backgroundColor: theme.colors.primary }]}
                   >
-                    <Text className="text-white font-bold text-lg">Set Budget Now</Text>
-                  </TouchableOpacity>
-                </View>
+                    <View style={styles.budgetHeader}>
+                      <View style={styles.budgetHeaderLeft}>
+                        <View style={[styles.budgetIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                          <DollarSign size={theme.layout.iconSize.sm} color={theme.colors.textInverse} />
+                        </View>
+                        <View>
+                          <Text style={[styles.budgetLabel, { color: theme.colors.textInverse }]}>Monthly Budget</Text>
+                          <Text style={[styles.budgetAmount, { color: theme.colors.textInverse }]}>
+                            ₹{currentFlat.monthlyBudget.toFixed(0)}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={[styles.budgetBadge, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                        <Text style={[styles.budgetBadgeText, { color: theme.colors.textInverse }]}>
+                          {new Date().toLocaleDateString('en-US', { month: 'short' })}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.budgetProgress}>
+                      <View style={styles.budgetProgressHeader}>
+                        <Text style={[styles.budgetProgressLabel, { color: 'rgba(255, 255, 255, 0.9)' }]}>Spent this month</Text>
+                        <Text style={[styles.budgetProgressAmount, { color: theme.colors.textInverse }]}>
+                          ₹{spent.toFixed(0)}
+                        </Text>
+                      </View>
+                      <View style={[styles.budgetProgressBar, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                        <View 
+                          style={[
+                            styles.budgetProgressFill,
+                            { 
+                              backgroundColor: percentage > 100 ? theme.colors.danger : percentage > 80 ? '#FCD34D' : theme.colors.textInverse,
+                              width: `${Math.min(percentage, 100)}%` 
+                            }
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.budgetProgressText, { color: 'rgba(255, 255, 255, 0.9)' }]}>
+                        {percentage.toFixed(0)}% used
+                      </Text>
+                    </View>
+
+                    <View style={[styles.budgetFooter, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
+                      <View style={styles.budgetFooterLeft}>
+                        {remaining >= 0 ? (
+                          <TrendingDown size={theme.layout.iconSize.sm} color={theme.colors.textInverse} />
+                        ) : (
+                          <TrendingUp size={theme.layout.iconSize.sm} color={theme.colors.danger} />
+                        )}
+                        <Text style={[styles.budgetFooterLabel, { color: theme.colors.textInverse }]}>
+                          {remaining >= 0 ? 'Remaining' : 'Over Budget'}
+                        </Text>
+                      </View>
+                      <Text style={[styles.budgetFooterAmount, { color: remaining >= 0 ? theme.colors.textInverse : theme.colors.danger }]}>
+                        ₹{Math.abs(remaining).toFixed(0)}
+                      </Text>
+                    </View>
+                  </Card>
+                );
+              })()}
+
+
+
+              {/* Set Budget Prompt (if no budget set) */}
+              {currentFlat && (!monthlyBudget || monthlyBudget === 0) && (
+                <Card
+                  variant="interactive"
+                  onPress={() => router.push('/budget')}
+                  style={[styles.setBudgetCard, { backgroundColor: theme.colors.primaryBg, borderColor: theme.colors.primary }]}
+                >
+                  <View style={styles.setBudgetContent}>
+                    <View style={[styles.setBudgetIcon, { backgroundColor: theme.colors.primaryBg }]}>
+                      <DollarSign size={theme.layout.iconSize.md} color={theme.colors.primary} />
+                    </View>
+                    <View style={styles.setBudgetText}>
+                      <Text style={[styles.setBudgetTitle, { color: theme.colors.text }]}>
+                        Set Monthly Budget
+                      </Text>
+                      <Text style={[styles.setBudgetSubtitle, { color: theme.colors.primary }]}>
+                        Track your spending and stay within limits
+                      </Text>
+                    </View>
+                    <ChevronRight size={theme.layout.iconSize.md} color={theme.colors.primary} />
+                  </View>
+                </Card>
               )}
 
               {/* Pending Expenses */}
               {pendingExpenses.length > 0 && (
-                <View className="bg-white rounded-2xl p-6 mb-6">
-                  <Text className="text-lg font-bold text-gray-900 mb-4">
-                    Pending Payments ({pendingExpenses.length})
-                  </Text>
+                <View style={styles.section}>
+                  <SectionTitle
+                    title={`Pending Payments (${pendingExpenses.length})`}
+                  />
                   
-                  {pendingExpenses.slice(0, 3).map((expense, index) => {
-                    const userParticipant = expense.participants?.find(
-                      p => p && p.userId && (p.userId._id === user?._id || p.userId === user?._id)
-                    );
-                    
-                    return (
-                      <TouchableOpacity 
-                        key={`${expense._id}-${index}`}
-                        onPress={() => router.push(`/expenseDetails?id=${expense._id}`)}
-                        className="flex-row items-center justify-between mb-4 pb-4 border-b border-gray-100 last:border-b-0 last:mb-0 last:pb-0"
-                      >
-                        <View className="flex-row items-center flex-1">
-                          <View className="w-10 h-10 bg-orange-100 rounded-full items-center justify-center mr-3">
-                            <Text className="text-orange-600 font-bold">
-                              {expense.category?.charAt(0).toUpperCase() || 'E'}
-                            </Text>
+                  <View style={styles.pendingList}>
+                    {pendingExpenses.slice(0, 3).map((due, index) => {
+                      // Handle both bill dues and expense dues
+                      const isBillDue = !!due.billId;
+                      const id = isBillDue ? due.billId?._id : due.expenseId;
+                      const title = isBillDue ? due.billId?.title : due.title;
+                      const category = isBillDue ? due.billId?.category : due.category;
+                      const amountOwed = due.amount;
+                      const dueDate = isBillDue ? due.billId?.dueDate : null;
+                      
+                      return (
+                        <Card
+                          key={`${id}-${index}`}
+                          variant="interactive"
+                          onPress={() => {
+                            if (id) router.push(`/expenseDetails?id=${id}`);
+                          }}
+                          style={styles.pendingCard}
+                        >
+                          <View style={styles.pendingCardContent}>
+                            <View style={styles.pendingCardLeft}>
+                              <View style={[styles.categoryIcon, { backgroundColor: theme.colors.warningBg }]}>
+                                <Text style={[styles.categoryIconText, { color: theme.colors.warning }]}>
+                                  {category?.charAt(0).toUpperCase() || (isBillDue ? 'B' : 'E')}
+                                </Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.pendingTitle}>{title || (isBillDue ? 'Bill' : 'Expense')}</Text>
+                                <Text style={styles.pendingDate}>
+                                  {dueDate ? new Date(dueDate).toLocaleDateString() : 'No due date'}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={styles.pendingCardRight}>
+                              <Text style={styles.pendingAmount}>
+                                ₹{amountOwed?.toFixed(2) || '0.00'}
+                              </Text>
+                              <Text style={[styles.pendingStatus, { color: theme.colors.error }]}>Unpaid</Text>
+                            </View>
                           </View>
-                          <View className="flex-1">
-                            <Text className="font-semibold text-gray-900">{expense.title}</Text>
-                            <Text className="text-gray-500 text-sm">
-                              {new Date(expense.createdAt).toLocaleDateString()}
-                            </Text>
-                          </View>
-                        </View>
-                        <View className="items-end">
-                          <Text className="font-bold text-gray-900">
-                            ₹{userParticipant?.amount.toFixed(2) || '0.00'}
-                          </Text>
-                          <Text className="text-red-500 text-sm">Unpaid</Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
+                        </Card>
+                      );
+                    })}
+                  </View>
 
                   {pendingExpenses.length > 3 && (
                     <TouchableOpacity 
                       onPress={handlePayDues}
-                      className="mt-2"
+                      style={styles.viewAllButton}
                     >
-                      <Text className="text-blue-600 font-semibold text-center">
+                      <Text style={[styles.viewAllText, { color: theme.colors.primary }]}>
                         View All ({pendingExpenses.length})
                       </Text>
                     </TouchableOpacity>
@@ -475,49 +460,51 @@ export default function Index() {
                 </View>
               )}
 
-              {/* Expense Stats */}
-              <View className="bg-white rounded-2xl p-6">
-                <Text className="text-lg font-bold text-gray-900 mb-4">Your Statistics</Text>
+              {/* Expense Stats - From V2 Unified API ⭐ */}
+              <View style={styles.section}>
+                <SectionTitle title="Monthly Overview" />
                 
-                <View className="flex-row justify-between mb-4">
-                  <View className="flex-1 items-center p-4 bg-blue-50 rounded-xl mr-2">
-                    <Text className="text-2xl font-bold text-blue-600">
-                      {stats.created?.totalExpenses || 0}
-                    </Text>
-                    <Text className="text-xs text-blue-800 text-center mt-1">
-                      Expenses Created
-                    </Text>
-                  </View>
-                  <View className="flex-1 items-center p-4 bg-green-50 rounded-xl ml-2">
-                    <Text className="text-2xl font-bold text-green-600">
-                      {stats.participant?.totalParticipations || 0}
-                    </Text>
-                    <Text className="text-xs text-green-800 text-center mt-1">
-                      Participations
-                    </Text>
-                  </View>
+                <View style={styles.statsRow}>
+                  <StatCard
+                    label="Bill Dues"
+                    value={billDues.length || 0}
+                    variant="info"
+                    style={{ flex: 1 }}
+                  />
+                  <StatCard
+                    label="Expense Dues"
+                    value={expenseDues.length || 0}
+                    variant="warning"
+                    style={{ flex: 1 }}
+                  />
                 </View>
 
-                <View className="p-4 bg-gray-50 rounded-xl">
-                  <View className="flex-row justify-between mb-2">
-                    <Text className="text-gray-600">Total Owed:</Text>
-                    <Text className="font-bold text-gray-900">
-                      ₹{totalOwed.toFixed(2)}
+                <Card style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Monthly Budget:</Text>
+                    <Text style={styles.summaryValue}>
+                      ₹{monthlyBudget.toFixed(2)}
                     </Text>
                   </View>
-                  <View className="flex-row justify-between mb-2">
-                    <Text className="text-gray-600">Paid:</Text>
-                    <Text className="font-bold text-green-600">
-                      ₹{paidAmount.toFixed(2)}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Bill Dues:</Text>
+                    <Text style={[styles.summaryValue, { color: theme.colors.warning }]}>
+                      ₹{totalBillDue.toFixed(2)}
                     </Text>
                   </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-gray-600">Remaining:</Text>
-                    <Text className="font-bold text-red-600">
-                      ₹{pendingAmount.toFixed(2)}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Expense Dues:</Text>
+                    <Text style={[styles.summaryValue, { color: theme.colors.primary }]}>
+                      ₹{totalExpenseDue.toFixed(2)}
                     </Text>
                   </View>
-                </View>
+                  <View style={[styles.summaryRow, { marginBottom: 0 }]}>
+                    <Text style={styles.summaryLabel}>Total Dues:</Text>
+                    <Text style={[styles.summaryValue, { color: theme.colors.error }]}>
+                      ₹{totalDue.toFixed(2)}
+                    </Text>
+                  </View>
+                </Card>
               </View>
             </>
           )}
@@ -526,3 +513,339 @@ export default function Index() {
     </View>
   );
 }
+
+const createStyles = (theme) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: theme.spacing.lg,
+  },
+  notificationButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: theme.borderRadius.full,
+  },
+  actionCardsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing['2xl'],
+  },
+  actionCard: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.primaryBg,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  actionText: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  loadingCard: {
+    marginBottom: theme.spacing['2xl'],
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: theme.spacing.sm,
+    color: theme.colors.textSecondary,
+  },
+  flatCard: {
+    marginBottom: theme.spacing['2xl'],
+  },
+  flatHeader: {
+    marginBottom: theme.spacing.lg,
+  },
+  flatHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  flatName: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  flatDate: {
+    color: theme.colors.textTertiary,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  viewDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewDetailsText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    marginRight: theme.spacing.xs,
+  },
+  rentSection: {
+    marginBottom: theme.spacing.lg,
+  },
+  rentLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.xs,
+  },
+  rentAmount: {
+    fontSize: theme.typography.fontSize['3xl'],
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text,
+  },
+  shareCard: {
+    borderRadius: theme.borderRadius['2xl'],
+    borderWidth: 1,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+  },
+  shareLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  shareAmount: {
+    fontSize: theme.typography.fontSize['2xl'],
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  shareSplit: {
+    fontSize: theme.typography.fontSize.xs,
+    marginTop: theme.spacing.xs,
+  },
+  paymentSection: {
+    marginBottom: theme.spacing.lg,
+  },
+  progressBarContainer: {
+    marginBottom: theme.spacing.lg,
+  },
+  progressBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  progressBarLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text,
+  },
+  progressBarAmount: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+  },
+  progressBar: {
+    height: 12,
+    borderRadius: theme.borderRadius.full,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 12,
+    borderRadius: theme.borderRadius.full,
+  },
+  progressBarFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.xs,
+  },
+  progressBarFooterText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.textTertiary,
+  },
+  budgetCard: {
+    marginBottom: theme.spacing['2xl'],
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.lg,
+  },
+  budgetHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  budgetIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  budgetLabel: {
+    fontSize: theme.typography.fontSize.sm,
+  },
+  budgetAmount: {
+    fontSize: theme.typography.fontSize['2xl'],
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  budgetBadge: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
+  },
+  budgetBadgeText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  budgetProgress: {
+    marginBottom: theme.spacing.md,
+  },
+  budgetProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.sm,
+  },
+  budgetProgressLabel: {
+    fontSize: theme.typography.fontSize.sm,
+  },
+  budgetProgressAmount: {
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  budgetProgressBar: {
+    borderRadius: theme.borderRadius.full,
+    height: 8,
+  },
+  budgetProgressFill: {
+    height: 8,
+    borderRadius: theme.borderRadius.full,
+  },
+  budgetProgressText: {
+    fontSize: theme.typography.fontSize.xs,
+    marginTop: theme.spacing.xs,
+  },
+  budgetFooter: {
+    borderRadius: theme.borderRadius['2xl'],
+    padding: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  budgetFooterLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  budgetFooterLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    marginLeft: theme.spacing.sm,
+  },
+  budgetFooterAmount: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  setBudgetCard: {
+    marginBottom: theme.spacing['2xl'],
+    borderWidth: 2,
+  },
+  setBudgetContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  setBudgetIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.lg,
+  },
+  setBudgetText: {
+    flex: 1,
+  },
+  setBudgetTitle: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.bold,
+    marginBottom: theme.spacing.xs,
+  },
+  setBudgetSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+  },
+  section: {
+    marginBottom: theme.spacing['2xl'],
+  },
+  pendingList: {
+    gap: theme.spacing.md,
+  },
+  pendingCard: {
+    // No additional styles needed, using Card defaults
+  },
+  pendingCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pendingCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  categoryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  categoryIconText: {
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  pendingTitle: {
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text,
+  },
+  pendingDate: {
+    color: theme.colors.textTertiary,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  pendingCardRight: {
+    alignItems: 'flex-end',
+  },
+  pendingAmount: {
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text,
+  },
+  pendingStatus: {
+    fontSize: theme.typography.fontSize.sm,
+  },
+  viewAllButton: {
+    marginTop: theme.spacing.md,
+  },
+  viewAllText: {
+    fontWeight: theme.typography.fontWeight.semibold,
+    textAlign: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  summaryCard: {
+    // backgroundColor set inline with theme
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
+  },
+  summaryLabel: {
+    color: theme.colors.textSecondary,
+  },
+  summaryValue: {
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text,
+  },
+});

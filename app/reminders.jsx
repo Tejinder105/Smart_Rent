@@ -2,9 +2,9 @@ import * as Notifications from 'expo-notifications';
 import { useRouter } from "expo-router";
 import { AlertCircle, AlertTriangle, Bell, Check, ChevronLeft, Clock, DollarSign, FileText, Users } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
+import { Button, Card, EmptyState, PageHeader, SectionTitle, StatCard } from '../components/ui';
 import { fetchParticipantExpenses } from "../store/slices/expenseSlice";
 import { fetchOutstandingDues } from "../store/slices/paymentSlice";
 // New notification API integration
@@ -13,7 +13,6 @@ import { fetchNotifications, fetchUnreadCount, markNotificationAsRead } from "..
 import notificationService from "../utils/notificationService";
 
 const reminders = () => {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const dispatch = useDispatch();
   const notificationListener = useRef();
@@ -225,10 +224,10 @@ const reminders = () => {
     const categoryStyle = getCategoryStyle(reminder.category);
     
     return (
-      <TouchableOpacity 
+      <Card 
+        variant="interactive"
         onPress={() => handleReminderPress(reminder)}
-        className="bg-white rounded-2xl p-4 mb-3 mx-4 border border-gray-100"
-        activeOpacity={0.7}
+        className="mb-3 mx-4"
       >
         <View className="flex-row items-center">
           {/* Icon */}
@@ -259,8 +258,8 @@ const reminders = () => {
             
             <View className="flex-row items-center">
               <Text className={`text-xs font-medium ${
-                reminder.isOverdue ? 'text-red-600' : 
-                reminder.isDueSoon ? 'text-orange-600' : 
+                reminder.isOverdue ? 'text-danger-600' : 
+                reminder.isDueSoon ? 'text-warning-600' : 
                 'text-gray-500'
               }`}>
                 {formatDueDate(reminder.daysRemaining, reminder.dueDate)}
@@ -276,21 +275,21 @@ const reminders = () => {
           {/* Status Badge */}
           <View className="ml-2">
             {reminder.isOverdue ? (
-              <View className="bg-red-100 px-3 py-1.5 rounded-full">
-                <Text className="text-xs font-bold text-red-700">OVERDUE</Text>
+              <View className="bg-danger-100 px-3 py-1.5 rounded-full">
+                <Text className="text-xs font-bold text-danger-700">OVERDUE</Text>
               </View>
             ) : reminder.isDueSoon ? (
-              <View className="bg-orange-100 px-3 py-1.5 rounded-full">
-                <Text className="text-xs font-bold text-orange-700">DUE SOON</Text>
+              <View className="bg-warning-100 px-3 py-1.5 rounded-full">
+                <Text className="text-xs font-bold text-warning-700">DUE SOON</Text>
               </View>
             ) : (
-              <View className="bg-blue-100 px-3 py-1.5 rounded-full">
-                <Text className="text-xs font-bold text-blue-700">UPCOMING</Text>
+              <View className="bg-primary-100 px-3 py-1.5 rounded-full">
+                <Text className="text-xs font-bold text-primary-700">UPCOMING</Text>
               </View>
             )}
           </View>
         </View>
-      </TouchableOpacity>
+      </Card>
     );
   };
 
@@ -298,93 +297,88 @@ const reminders = () => {
 
   return (
     <View className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="px-4 py-4 bg-white" style={{ paddingTop: insets.top + 12 }}>
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center flex-1">
-            <TouchableOpacity 
-              onPress={handleGoBack}
-              className="mr-4 w-10 h-10 items-center justify-center"
+      <PageHeader
+        title="Reminders"
+        subtitle={
+          showBackendNotifs 
+            ? `${backendNotifications?.length || 0} notification${backendNotifications?.length !== 1 ? 's' : ''}${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`
+            : `${allReminders.length} reminder${allReminders.length !== 1 ? 's' : ''}`
+        }
+        leftAction={
+          <Button
+            variant="ghost"
+            size="sm"
+            onPress={handleGoBack}
+            leftIcon={<ChevronLeft size={24} color="#374151" />}
+          />
+        }
+        rightAction={
+          <View className="flex-row items-center gap-2">
+            <Button
+              variant={showBackendNotifs ? "primary" : "ghost"}
+              size="sm"
+              onPress={() => setShowBackendNotifs(!showBackendNotifs)}
+              className={showBackendNotifs ? "" : "bg-gray-200"}
             >
-              <ChevronLeft size={24} color="#374151" />
-            </TouchableOpacity>
-            <View className="flex-1">
-              <Text className="text-[26px] font-bold text-gray-900">
-                Reminders
+              <Text className={`text-sm font-semibold ${showBackendNotifs ? 'text-white' : 'text-gray-700'}`}>
+                {showBackendNotifs ? 'Notifications' : 'Local'}
               </Text>
-              <Text className="text-sm text-gray-500">
-                {showBackendNotifs 
-                  ? `${backendNotifications?.length || 0} notification${backendNotifications?.length !== 1 ? 's' : ''}`
-                  : `${allReminders.length} reminder${allReminders.length !== 1 ? 's' : ''}`
-                }
-                {unreadCount > 0 && showBackendNotifs && ` (${unreadCount} unread)`}
-              </Text>
-            </View>
+            </Button>
+            {overdueCount > 0 && !showBackendNotifs && (
+              <View className="bg-danger-100 px-3 py-1 rounded-full">
+                <Text className="text-danger-700 font-bold text-sm">{overdueCount} Overdue</Text>
+              </View>
+            )}
           </View>
-          {/* Toggle Button */}
-          <TouchableOpacity 
-            onPress={() => setShowBackendNotifs(!showBackendNotifs)}
-            className={`px-4 py-2 rounded-full ${showBackendNotifs ? 'bg-blue-100' : 'bg-gray-200'}`}
-          >
-            <Text className={`text-sm font-semibold ${showBackendNotifs ? 'text-blue-700' : 'text-gray-700'}`}>
-              {showBackendNotifs ? 'Notifications' : 'Local'}
-            </Text>
-          </TouchableOpacity>
-          {overdueCount > 0 && !showBackendNotifs && (
-            <View className="bg-red-100 px-3 py-1 rounded-full ml-2">
-              <Text className="text-red-700 font-bold text-sm">{overdueCount} Overdue</Text>
-            </View>
-          )}
-        </View>
-      </View>
+        }
+      />
 
       {/* Notification Status Banner */}
       {notificationsEnabled && overdueCount > 0 && (
-        <View className="mx-4 mt-3 bg-purple-50 border border-purple-200 rounded-xl p-3">
+        <Card variant="outline" className="mx-4 mt-3 bg-purple-50 border-purple-200">
           <View className="flex-row items-center">
             <Bell size={18} color="#8b5cf6" />
             <Text className="flex-1 text-purple-800 text-sm font-medium ml-2">
               Push notifications enabled for overdue payments
             </Text>
           </View>
-        </View>
+        </Card>
       )}
 
       {!notificationsEnabled && (
-        <TouchableOpacity 
+        <Card 
+          variant="interactive"
           onPress={setupNotifications}
-          className="mx-4 mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3"
-          activeOpacity={0.7}
+          className="mx-4 mt-3 bg-warning-50 border-warning-200"
         >
           <View className="flex-row items-center">
             <AlertTriangle size={18} color="#f59e0b" />
-            <Text className="flex-1 text-amber-800 text-sm font-medium ml-2">
+            <Text className="flex-1 text-warning-800 text-sm font-medium ml-2">
               Enable notifications to get overdue alerts
             </Text>
-            <Text className="text-amber-600 text-xs font-bold">TAP</Text>
+            <Text className="text-warning-600 text-xs font-bold">TAP</Text>
           </View>
-        </TouchableOpacity>
+        </Card>
       )}
 
       {/* Summary Cards - Only for Local Reminders */}
       {!loading && !showBackendNotifs && allReminders.length > 0 && (
         <View className="px-4 pt-4 pb-2">
           <View className="flex-row gap-3">
-            <View className="flex-1 bg-red-50 border border-red-200 rounded-xl p-4">
-              <View className="flex-row items-center mb-1">
-                <AlertCircle size={18} color="#ef4444" />
-                <Text className="text-red-600 text-xs font-medium ml-2">Overdue</Text>
-              </View>
-              <Text className="text-2xl font-bold text-red-700">{overdueCount}</Text>
-            </View>
-
-            <View className="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <View className="flex-row items-center mb-1">
-                <Bell size={18} color="#3b82f6" />
-                <Text className="text-blue-600 text-xs font-medium ml-2">Upcoming</Text>
-              </View>
-              <Text className="text-2xl font-bold text-blue-700">{upcomingCount}</Text>
-            </View>
+            <StatCard
+              label="Overdue"
+              value={overdueCount}
+              variant="danger"
+              icon={<AlertCircle size={18} color="#ef4444" />}
+              className="flex-1"
+            />
+            <StatCard
+              label="Upcoming"
+              value={upcomingCount}
+              variant="primary"
+              icon={<Bell size={18} color="#3b82f6" />}
+              className="flex-1"
+            />
           </View>
         </View>
       )}
@@ -393,32 +387,38 @@ const reminders = () => {
       {!loading && !showBackendNotifs && allReminders.length > 0 && (
         <View className="px-4 py-3">
           <View className="flex-row bg-white rounded-xl p-1 border border-gray-200">
-            <TouchableOpacity
+            <Button
+              variant={activeTab === 'all' ? 'success' : 'ghost'}
+              size="md"
               onPress={() => setActiveTab('all')}
-              className={`flex-1 py-2 rounded-lg ${activeTab === 'all' ? 'bg-green-500' : 'bg-transparent'}`}
+              className="flex-1"
             >
               <Text className={`text-center font-semibold ${activeTab === 'all' ? 'text-white' : 'text-gray-600'}`}>
                 All ({allReminders.length})
               </Text>
-            </TouchableOpacity>
+            </Button>
 
-            <TouchableOpacity
+            <Button
+              variant={activeTab === 'overdue' ? 'danger' : 'ghost'}
+              size="md"
               onPress={() => setActiveTab('overdue')}
-              className={`flex-1 py-2 rounded-lg ${activeTab === 'overdue' ? 'bg-red-500' : 'bg-transparent'}`}
+              className="flex-1"
             >
               <Text className={`text-center font-semibold ${activeTab === 'overdue' ? 'text-white' : 'text-gray-600'}`}>
                 Overdue ({overdueCount})
               </Text>
-            </TouchableOpacity>
+            </Button>
 
-            <TouchableOpacity
+            <Button
+              variant={activeTab === 'upcoming' ? 'primary' : 'ghost'}
+              size="md"
               onPress={() => setActiveTab('upcoming')}
-              className={`flex-1 py-2 rounded-lg ${activeTab === 'upcoming' ? 'bg-blue-500' : 'bg-transparent'}`}
+              className="flex-1"
             >
               <Text className={`text-center font-semibold ${activeTab === 'upcoming' ? 'text-white' : 'text-gray-600'}`}>
                 Upcoming ({upcomingCount})
               </Text>
-            </TouchableOpacity>
+            </Button>
           </View>
         </View>
       )}
@@ -431,56 +431,53 @@ const reminders = () => {
         }
       >
         {loading && !refreshing ? (
-          <View className="flex-1 justify-center items-center py-12">
-            <ActivityIndicator size="large" color="#22c55e" />
+          <Card className="mx-4 mt-4 items-center py-12">
+            <ActivityIndicator size="large" color="#00C471" />
             <Text className="mt-2 text-gray-600">Loading...</Text>
-          </View>
+          </Card>
         ) : showBackendNotifs ? (
           // Backend Notifications View
           <View className="pb-6 pt-4">
             {notifLoading && backendNotifications.length === 0 ? (
-              <View className="flex-1 justify-center items-center py-12">
-                <ActivityIndicator size="large" color="#22c55e" />
+              <Card className="mx-4 items-center py-12">
+                <ActivityIndicator size="large" color="#00C471" />
                 <Text className="mt-2 text-gray-600">Loading notifications...</Text>
-              </View>
+              </Card>
             ) : backendNotifications.length === 0 ? (
-              <View className="bg-blue-50 border border-blue-200 rounded-xl p-6 mx-4 items-center">
-                <Bell size={48} color="#3b82f6" />
-                <Text className="text-blue-800 text-lg font-semibold mt-4">
-                  No Notifications
-                </Text>
-                <Text className="text-blue-600 text-center mt-2">
-                  You're all caught up! Backend notifications will appear here.
-                </Text>
-              </View>
+              <EmptyState
+                icon={<Bell size={48} color="#3b82f6" />}
+                title="No Notifications"
+                message="You're all caught up! Backend notifications will appear here."
+                className="mx-4"
+              />
             ) : (
               backendNotifications.map((notification) => (
-                <TouchableOpacity
+                <Card
                   key={notification._id}
+                  variant="interactive"
                   onPress={() => {
                     if (!notification.read) {
                       dispatch(markNotificationAsRead(notification._id));
                     }
                   }}
-                  className={`mx-4 mb-3 p-4 rounded-xl border ${
+                  className={`mx-4 mb-3 ${
                     notification.read 
                       ? 'bg-gray-50 border-gray-200' 
-                      : 'bg-white border-blue-300 shadow-sm'
+                      : 'bg-white border-primary-300 shadow-sm'
                   }`}
-                  activeOpacity={0.7}
                 >
                   <View className="flex-row items-start">
                     <View className={`w-10 h-10 rounded-full items-center justify-center ${
-                      notification.type === 'bill_due' || notification.type === 'bill_overdue' ? 'bg-red-100' :
-                      notification.type === 'payment_reminder' ? 'bg-amber-100' :
-                      notification.type === 'payment_received' ? 'bg-green-100' :
-                      notification.type === 'bill_created' ? 'bg-blue-100' :
+                      notification.type === 'bill_due' || notification.type === 'bill_overdue' ? 'bg-danger-100' :
+                      notification.type === 'payment_reminder' ? 'bg-warning-100' :
+                      notification.type === 'payment_received' ? 'bg-success-100' :
+                      notification.type === 'bill_created' ? 'bg-primary-100' :
                       notification.type === 'expense_created' ? 'bg-purple-100' :
                       'bg-gray-100'
                     }`}>
                       {(notification.type === 'bill_due' || notification.type === 'bill_overdue') && <AlertCircle size={20} color="#ef4444" />}
                       {notification.type === 'payment_reminder' && <Clock size={20} color="#f59e0b" />}
-                      {notification.type === 'payment_received' && <Check size={20} color="#22c55e" />}
+                      {notification.type === 'payment_received' && <Check size={20} color="#00C471" />}
                       {notification.type === 'bill_created' && <FileText size={20} color="#3b82f6" />}
                       {notification.type === 'expense_created' && <DollarSign size={20} color="#8b5cf6" />}
                       {!['bill_due', 'bill_overdue', 'payment_reminder', 'payment_received', 'bill_created', 'expense_created'].includes(notification.type) && 
@@ -493,7 +490,7 @@ const reminders = () => {
                           {notification.title}
                         </Text>
                         {!notification.read && (
-                          <View className="w-2 h-2 rounded-full bg-blue-500" />
+                          <View className="w-2 h-2 rounded-full bg-primary-500" />
                         )}
                       </View>
                       
@@ -520,35 +517,36 @@ const reminders = () => {
                       </Text>
                     </View>
                   </View>
-                </TouchableOpacity>
+                </Card>
               ))
             )}
           </View>
         ) : filteredReminders.length === 0 ? (
           // Local Reminders Empty State
-          <View className="bg-green-50 border border-green-200 rounded-xl p-6 mx-4 mt-4 items-center">
-            <Bell size={48} color="#22c55e" />
-            <Text className="text-green-800 text-lg font-semibold mt-4">
-              {activeTab === 'all' ? 'No Reminders' : 
-               activeTab === 'overdue' ? 'No Overdue Payments' : 
-               'No Upcoming Payments'}
-            </Text>
-            <Text className="text-green-600 text-center mt-2">
-              {activeTab === 'all' ? 'You have no pending payments at the moment' : 
-               activeTab === 'overdue' ? 'Great! All your payments are up to date' : 
-               'No upcoming payments scheduled'}
-            </Text>
-          </View>
+          <EmptyState
+            icon={<Bell size={48} color="#00C471" />}
+            title={
+              activeTab === 'all' ? 'No Reminders' : 
+              activeTab === 'overdue' ? 'No Overdue Payments' : 
+              'No Upcoming Payments'
+            }
+            message={
+              activeTab === 'all' ? 'You have no pending payments at the moment' : 
+              activeTab === 'overdue' ? 'Great! All your payments are up to date' : 
+              'No upcoming payments scheduled'
+            }
+            className="mx-4 mt-4"
+          />
         ) : (
           <View className="pb-6 pt-2">
             {overdueCount > 0 && activeTab === 'all' && (
               <View className="mb-2">
-                <View className="flex-row items-center mx-4 mb-3">
-                  <AlertTriangle size={18} color="#ef4444" />
-                  <Text className="text-base font-bold text-red-700 ml-2">
-                    Overdue ({overdueCount})
-                  </Text>
-                </View>
+                <SectionTitle
+                  title={`Overdue (${overdueCount})`}
+                  variant="compact"
+                  icon={<AlertTriangle size={18} color="#ef4444" />}
+                  className="mx-4 mb-3"
+                />
                 {filteredReminders
                   .filter(r => r.isOverdue)
                   .map((reminder) => (
@@ -567,12 +565,12 @@ const reminders = () => {
 
             {upcomingCount > 0 && activeTab === 'all' && (
               <View>
-                <View className="flex-row items-center mx-4 mb-3 mt-2">
-                  <Clock size={18} color="#3b82f6" />
-                  <Text className="text-base font-bold text-blue-700 ml-2">
-                    Upcoming ({upcomingCount})
-                  </Text>
-                </View>
+                <SectionTitle
+                  title={`Upcoming (${upcomingCount})`}
+                  variant="compact"
+                  icon={<Clock size={18} color="#3b82f6" />}
+                  className="mx-4 mb-3 mt-2"
+                />
                 {filteredReminders
                   .filter(r => !r.isOverdue)
                   .map((reminder) => (

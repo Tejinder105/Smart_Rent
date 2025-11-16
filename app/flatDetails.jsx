@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { ArrowLeft, ChevronRight, Copy, Home, Info, Key, Settings, UserPlus, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -8,17 +8,22 @@ import {
     RefreshControl,
     ScrollView,
     Text,
-    TouchableOpacity,
     View
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
+import {
+    Button,
+    Card,
+    EmptyState,
+    PageHeader,
+    SectionTitle,
+    StatCard
+} from '../components/ui';
 import { fetchFlatMembers } from '../store/slices/flatSlice';
 
 const FlatDetails = () => {
   const router = useRouter();
   const dispatch = useDispatch();
-  const insets = useSafeAreaInsets();
   
   const { currentFlat, members, membersLoading } = useSelector((state) => state.flat);
   const { userData } = useSelector((state) => state.auth);
@@ -93,23 +98,23 @@ const FlatDetails = () => {
   if (!currentFlat) {
     return (
       <View className="flex-1 bg-gray-50">
-        <View 
-          className="bg-white px-4 py-4 border-b border-gray-200"
-          style={{ paddingTop: insets.top + 12 }}
-        >
-          <View className="flex-row items-center justify-between">
-            <TouchableOpacity
+        <PageHeader
+          title="Flat Details"
+          leftAction={
+            <Button
+              variant="ghost"
+              size="sm"
               onPress={() => router.back()}
-              className="w-10 h-10 items-center justify-center rounded-full bg-gray-100"
-            >
-              <Ionicons name="arrow-back" size={20} color="#374151" />
-            </TouchableOpacity>
-            <Text className="text-xl font-bold text-gray-900">Flat Details</Text>
-            <View className="w-10" />
-          </View>
-        </View>
+              leftIcon={<ArrowLeft size={20} color="#374151" />}
+            />
+          }
+        />
         <View className="flex-1 items-center justify-center p-4">
-          <Text className="text-gray-600 text-center">No flat information available</Text>
+          <EmptyState
+            icon={<Home size={48} color="#9ca3af" />}
+            title="No Flat Information"
+            message="No flat information available"
+          />
         </View>
       </View>
     );
@@ -118,23 +123,17 @@ const FlatDetails = () => {
   return (
     <View className="flex-1 bg-gray-50">
       {/* Header */}
-      <View 
-        className="bg-white px-4 py-4 border-b border-gray-200"
-        style={{ paddingTop: insets.top + 12 }}
-      >
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity
+      <PageHeader
+        title="Flat Details"
+        leftAction={
+          <Button
+            variant="ghost"
+            size="sm"
             onPress={() => router.back()}
-            className="w-10 h-10 items-center justify-center rounded-full bg-gray-100"
-          >
-            <Ionicons name="arrow-back" size={20} color="#374151" />
-          </TouchableOpacity>
-          
-          <Text className="text-xl font-bold text-gray-900">Flat Details</Text>
-          
-          <View className="w-10" />
-        </View>
-      </View>
+            leftIcon={<ArrowLeft size={20} color="#374151" />}
+          />
+        }
+      />
 
       <ScrollView
         className="flex-1"
@@ -145,53 +144,76 @@ const FlatDetails = () => {
       >
         <View className="p-4">
           {/* Flat Info Card */}
-          <View className="bg-white rounded-2xl p-6 mb-4">
+          <Card variant="elevated" className="bg-white mb-4">
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-1">
                 <Text className="text-2xl font-bold text-gray-900 mb-1">
                   {currentFlat.name}
                 </Text>
                 {isAdmin && (
-                  <View className="flex-row items-center mt-1">
-                    <View className="bg-purple-100 px-2 py-1 rounded-md">
-                      <Text className="text-purple-800 text-xs font-semibold">
-                        You are Admin
-                      </Text>
-                    </View>
+                  <View className="bg-purple-100 px-2 py-1 rounded-md self-start mt-1">
+                    <Text className="text-purple-800 text-xs font-semibold">
+                      You are Admin
+                    </Text>
                   </View>
                 )}
               </View>
-              <View className="w-16 h-16 bg-blue-500 rounded-full items-center justify-center">
-                <Ionicons name="home" size={32} color="white" />
+              <View className="w-16 h-16 bg-primary-500 rounded-full items-center justify-center">
+                <Home size={32} color="white" />
               </View>
             </View>
 
-            <View className="border-t border-gray-200 pt-4">
-              <View className="flex-row justify-between mb-3">
-                <Text className="text-gray-600">Monthly Rent:</Text>
-                <Text className="font-bold text-gray-900 text-lg">
-                  ₹{currentFlat.rent?.toFixed(2)}
-                </Text>
+            <View className="border-t border-gray-200 pt-4 gap-3">
+              <View className="flex-row gap-3">
+                <StatCard
+                  label="Monthly Rent"
+                  value={`₹${currentFlat.rent?.toFixed(2)}`}
+                  variant="default"
+                  className="flex-1"
+                />
+                <StatCard
+                  label="Budget"
+                  value={currentFlat.monthlyBudget > 0 ? `₹${currentFlat.monthlyBudget?.toFixed(2)}` : 'Not Set'}
+                  variant="default"
+                  className="flex-1"
+                />
               </View>
-              <View className="flex-row justify-between mb-3">
-                <Text className="text-gray-600">Total Members:</Text>
-                <Text className="font-bold text-gray-900">
-                  {currentFlat.stats?.totalMembers || members?.length || 0}
-                </Text>
+              <View className="flex-row gap-3">
+                <StatCard
+                  label="Total Members"
+                  value={currentFlat.stats?.totalMembers || members?.length || 0}
+                  variant="default"
+                  className="flex-1"
+                />
+                <StatCard
+                  label="Rent/Person"
+                  value={`₹${((currentFlat.rent || 0) / (currentFlat.stats?.totalMembers || 1)).toFixed(2)}`}
+                  variant="success"
+                  className="flex-1"
+                />
               </View>
-              <View className="flex-row justify-between">
-                <Text className="text-gray-600">Rent per Person:</Text>
-                <Text className="font-bold text-green-600 text-lg">
-                  ₹{((currentFlat.rent || 0) / (currentFlat.stats?.totalMembers || 1)).toFixed(2)}
-                </Text>
-              </View>
+
+              {/* Budget Quick Action */}
+              <Card
+                variant="interactive"
+                onPress={() => router.push('/budget')}
+                className="bg-purple-50 border-purple-200 flex-row items-center justify-between"
+              >
+                <View className="flex-row items-center">
+                  <Text className="text-2xl mr-2">💰</Text>
+                  <Text className="text-purple-900 font-semibold">
+                    {currentFlat.monthlyBudget > 0 ? 'View Budget' : 'Set Budget'}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color="#9333ea" />
+              </Card>
             </View>
-          </View>
+          </Card>
 
           {/* Join Code Card */}
-          <View className="bg-gradient-to-r from-blue-500 to-purple-500 bg-blue-500 rounded-2xl p-6 mb-4">
+          <Card className="bg-gradient-to-r from-primary-500 to-purple-500 bg-primary-500 mb-4">
             <View className="flex-row items-center mb-3">
-              <Ionicons name="key" size={24} color="white" />
+              <Key size={24} color="white" />
               <Text className="text-white font-bold text-lg ml-2">
                 Join Code
               </Text>
@@ -203,37 +225,34 @@ const FlatDetails = () => {
               </Text>
             </View>
 
-            <TouchableOpacity
+            <Button
+              variant="outline"
+              size="md"
               onPress={handleCopyJoinCode}
-              className="bg-white rounded-xl py-3 px-4 flex-row items-center justify-center"
+              leftIcon={<Copy size={20} color="#3B82F6" />}
+              className="bg-white"
             >
-              <Ionicons name="copy-outline" size={20} color="#3B82F6" />
-              <Text className="text-blue-600 font-semibold ml-2">
-                Copy Join Code
-              </Text>
-            </TouchableOpacity>
+              <Text className="text-primary-600 font-semibold">Copy Join Code</Text>
+            </Button>
 
             <Text className="text-white/80 text-xs text-center mt-3">
               Share this code with your flatmates to invite them
             </Text>
-          </View>
+          </Card>
 
           {/* Members Section */}
-          <View className="bg-white rounded-2xl p-6 mb-4">
+          <Card variant="elevated" className="bg-white mb-4">
             <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-xl font-bold text-gray-900">
-                Flatmates ({members?.length || 0})
-              </Text>
+              <SectionTitle title={`Flatmates (${members?.length || 0})`} variant="compact" className="mb-0" />
               {isAdmin && (
-                <TouchableOpacity
+                <Button
+                  variant="success"
+                  size="sm"
                   onPress={handleAddFlatmate}
-                  className="flex-row items-center bg-green-500 px-4 py-2 rounded-lg"
+                  leftIcon={<UserPlus size={16} color="white" />}
                 >
-                  <Ionicons name="person-add" size={16} color="white" />
-                  <Text className="text-white font-semibold ml-1 text-sm">
-                    Add
-                  </Text>
-                </TouchableOpacity>
+                  Add
+                </Button>
               )}
             </View>
 
@@ -256,7 +275,7 @@ const FlatDetails = () => {
                     >
                       <View className="flex-row items-center flex-1">
                         {/* Avatar */}
-                        <View className="w-12 h-12 bg-blue-500 rounded-full items-center justify-center mr-3">
+                        <View className="w-12 h-12 bg-primary-500 rounded-full items-center justify-center mr-3">
                           <Text className="text-white font-bold text-lg">
                             {member.name?.charAt(0).toUpperCase() || 'U'}
                           </Text>
@@ -269,14 +288,14 @@ const FlatDetails = () => {
                               {member.name}
                             </Text>
                             {isCurrentUser && (
-                              <Text className="text-blue-600 text-xs ml-2">(You)</Text>
+                              <Text className="text-primary-600 text-xs ml-2">(You)</Text>
                             )}
                           </View>
                           <Text className="text-gray-500 text-sm">
                             {member.email}
                           </Text>
                           {member.monthlyContribution > 0 && (
-                            <Text className="text-green-600 text-xs mt-1">
+                            <Text className="text-success-600 text-xs mt-1">
                               Contribution: ₹{member.monthlyContribution.toFixed(2)}
                             </Text>
                           )}
@@ -294,45 +313,45 @@ const FlatDetails = () => {
                 })}
               </View>
             ) : (
-              <View className="py-8 items-center">
-                <Ionicons name="people-outline" size={48} color="#9CA3AF" />
-                <Text className="text-gray-500 mt-2">No members found</Text>
-              </View>
+              <EmptyState
+                icon={<Users size={48} color="#9CA3AF" />}
+                title="No Members"
+                message="No members found"
+              />
             )}
-          </View>
+          </Card>
 
           {/* Info Card */}
-          <View className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4">
-            <View className="flex-row items-start">
-              <Ionicons name="information-circle" size={20} color="#2563eb" />
-              <View className="ml-3 flex-1">
-                <Text className="text-blue-800 font-medium text-sm mb-2">
-                  About Flat Management
-                </Text>
-                <Text className="text-blue-700 text-xs leading-5">
-                  • Admin can add or remove members{'\n'}
-                  • All members can create and split expenses{'\n'}
-                  • Join code never expires{'\n'}
-                  • Share the code to invite new flatmates
-                </Text>
-              </View>
+          <Card variant="outline" className="bg-primary-50 border-primary-200 mb-4 flex-row items-start">
+            <Info size={20} color="#2563eb" />
+            <View className="ml-3 flex-1">
+              <Text className="text-primary-800 font-medium text-sm mb-2">
+                About Flat Management
+              </Text>
+              <Text className="text-primary-700 text-xs leading-5">
+                • Admin can add or remove members{'\n'}
+                • All members can create and split expenses{'\n'}
+                • Join code never expires{'\n'}
+                • Share the code to invite new flatmates
+              </Text>
             </View>
-          </View>
+          </Card>
 
           {/* Settings Button (for future) */}
           {isAdmin && (
-            <TouchableOpacity
+            <Card
+              variant="interactive"
               onPress={() => router.push('/settings')}
-              className="bg-white rounded-2xl p-4 flex-row items-center justify-between mb-4"
+              className="bg-white flex-row items-center justify-between mb-4"
             >
               <View className="flex-row items-center">
-                <Ionicons name="settings-outline" size={24} color="#374151" />
+                <Settings size={24} color="#374151" />
                 <Text className="text-gray-900 font-semibold ml-3">
                   Flat Settings
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+              <ChevronRight size={20} color="#9CA3AF" />
+            </Card>
           )}
         </View>
       </ScrollView>
