@@ -1,23 +1,23 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ChevronRight, Copy, Home, Info, Key, Settings, UserPlus, Users } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Copy, Home, Key, Settings, UserPlus, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Clipboard,
-    RefreshControl,
-    ScrollView,
-    Text,
-    View
+  ActivityIndicator,
+  Alert,
+  Clipboard,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-    Button,
-    Card,
-    EmptyState,
-    PageHeader,
-    SectionTitle,
-    StatCard
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  SectionTitle,
+  StatCard
 } from '../components/ui';
 import { fetchFlatMembers } from '../store/slices/flatSlice';
 
@@ -142,29 +142,29 @@ const FlatDetails = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <View className="p-4">
+        <View className="p-2">
           {/* Flat Info Card */}
           <Card variant="elevated" className="bg-white mb-4">
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-1">
-                <Text className="text-2xl font-bold text-gray-900 mb-1">
+                <Text className="text-xl font-bold text-gray-900 mb-1">
                   {currentFlat.name}
                 </Text>
                 {isAdmin && (
-                  <View className="bg-purple-100 px-2 py-1 rounded-md self-start mt-1">
-                    <Text className="text-purple-800 text-xs font-semibold">
+                  <View className="bg-purple-100 px-2 py-1 rounded-md self-start">
+                    <Text className="text-purple-800 text-sm font-semibold">
                       You are Admin
                     </Text>
                   </View>
                 )}
               </View>
-              <View className="w-16 h-16 bg-primary-500 rounded-full items-center justify-center">
-                <Home size={32} color="white" />
+              <View className="w-12 h-12 bg-primary-500 rounded-full items-center justify-center">
+                <Home size={24} color="white" />
               </View>
             </View>
 
             <View className="border-t border-gray-200 pt-4 gap-3">
-              <View className="flex-row gap-3">
+              <View className="flex-row" style={{ gap: 12 }}>
                 <StatCard
                   label="Monthly Rent"
                   value={`₹${currentFlat.rent?.toFixed(2)}`}
@@ -178,7 +178,7 @@ const FlatDetails = () => {
                   className="flex-1"
                 />
               </View>
-              <View className="flex-row gap-3">
+              <View className="flex-row" style={{ gap: 12 }}>
                 <StatCard
                   label="Total Members"
                   value={currentFlat.stats?.totalMembers || members?.length || 0}
@@ -197,10 +197,10 @@ const FlatDetails = () => {
               <Card
                 variant="interactive"
                 onPress={() => router.push('/budget')}
-                className="bg-purple-50 border-purple-200 flex-row items-center justify-between"
+                style={{ backgroundColor: '#faf5ff', borderWidth: 1, borderColor: '#e9d5ff' }}
+                className="flex-row items-center justify-between"
               >
                 <View className="flex-row items-center">
-                  <Text className="text-2xl mr-2">💰</Text>
                   <Text className="text-purple-900 font-semibold">
                     {currentFlat.monthlyBudget > 0 ? 'View Budget' : 'Set Budget'}
                   </Text>
@@ -211,7 +211,7 @@ const FlatDetails = () => {
           </Card>
 
           {/* Join Code Card */}
-          <Card className="bg-gradient-to-r from-primary-500 to-purple-500 bg-primary-500 mb-4">
+          <Card variant="elevated" style={{ backgroundColor: '#1E40AF' }} className="mb-4">
             <View className="flex-row items-center mb-3">
               <Key size={24} color="white" />
               <Text className="text-white font-bold text-lg ml-2">
@@ -219,23 +219,23 @@ const FlatDetails = () => {
               </Text>
             </View>
             
-            <View className="bg-white/20 backdrop-blur rounded-xl p-4 mb-4">
+            <View className="bg-white/20 backdrop-blur rounded-xl p-4 mb-4 border border-white/30">
               <Text className="text-white text-center text-4xl font-bold tracking-widest font-mono">
                 {currentFlat.joinCode}
               </Text>
             </View>
 
             <Button
-              variant="outline"
+              variant="primary"
               size="md"
               onPress={handleCopyJoinCode}
-              leftIcon={<Copy size={20} color="#3B82F6" />}
-              className="bg-white"
+              leftIcon={<Copy size={20} color="white" />}
+              className="bg-white gap-2"
             >
-              <Text className="text-primary-600 font-semibold">Copy Join Code</Text>
+              <Text className=" text-white font-semibold">Copy Join Code</Text>
             </Button>
 
-            <Text className="text-white/80 text-xs text-center mt-3">
+            <Text className="text-white text-xs text-center mt-3">
               Share this code with your flatmates to invite them
             </Text>
           </Card>
@@ -319,22 +319,6 @@ const FlatDetails = () => {
                 message="No members found"
               />
             )}
-          </Card>
-
-          {/* Info Card */}
-          <Card variant="outline" className="bg-primary-50 border-primary-200 mb-4 flex-row items-start">
-            <Info size={20} color="#2563eb" />
-            <View className="ml-3 flex-1">
-              <Text className="text-primary-800 font-medium text-sm mb-2">
-                About Flat Management
-              </Text>
-              <Text className="text-primary-700 text-xs leading-5">
-                • Admin can add or remove members{'\n'}
-                • All members can create and split expenses{'\n'}
-                • Join code never expires{'\n'}
-                • Share the code to invite new flatmates
-              </Text>
-            </View>
           </Card>
 
           {/* Settings Button (for future) */}

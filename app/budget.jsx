@@ -1,16 +1,16 @@
 import { useRouter } from 'expo-router';
 import {
-  AlertCircle, Calendar, ChevronLeft, DollarSign,
-  PieChart, Save, TrendingDown, TrendingUp
+    AlertCircle, Calendar, ChevronLeft, DollarSign,
+    Save, TrendingDown, TrendingUp
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    Text,
+    View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -26,7 +26,7 @@ const Budget = () => {
 
   const { currentFlat, loading } = useSelector((state) => state.flat);
   const { userData } = useSelector((state) => state.auth);
-  const { budget, budgetHistory } = useSelector((state) => state.expenseUnified);
+  const { currentBudget, budgetHistory } = useSelector((state) => state.expenseUnified);
   const { forecast, forecastLoading } = useSelector((state) => state.report);
   const { isDark } = useSelector((state) => state.theme);
 
@@ -35,7 +35,6 @@ const Budget = () => {
   const [monthlyBudget, setMonthlyBudget] = useState('');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showBreakdown, setShowBreakdown] = useState(false);
   const [showForecast, setShowForecast] = useState(false);
 
   useEffect(() => {
@@ -48,10 +47,9 @@ const Budget = () => {
     if (currentFlat?._id) {
       dispatch(fetchCurrentBudget({ flatId: currentFlat._id }));
       dispatch(fetchBudgetHistory({ flatId: currentFlat._id, limit: 3 }));
-      // Fetch ML forecast (requires at least 2 months of data)
+      // Fetch ML forecast for next month only
       dispatch(fetchBudgetForecast({ 
-        flatId: currentFlat._id, 
-        params: { months: 3 } 
+        flatId: currentFlat._id
       })).catch(err => {
         console.log('⚠️ Forecast not available:', err);
       });
@@ -65,8 +63,7 @@ const Budget = () => {
       currentFlat?._id && dispatch(fetchCurrentBudget({ flatId: currentFlat._id })),
       currentFlat?._id && dispatch(fetchBudgetHistory({ flatId: currentFlat._id, limit: 3 })),
       currentFlat?._id && dispatch(fetchBudgetForecast({ 
-        flatId: currentFlat._id, 
-        params: { months: 3 } 
+        flatId: currentFlat._id
       })).catch(() => {})
     ]);
     setRefreshing(false);
@@ -113,21 +110,13 @@ const Budget = () => {
     currentFlat?.admin?._id === userData?._id ||
     currentFlat?.admin === userData?._id;
 
-  const budgetAmount = budget?.monthlyBudget || currentFlat?.monthlyBudget || 0;
-  const currentMonthSpending = budget?.currentSpending || 0;
+  const budgetAmount = currentBudget?.budgetAmount || currentFlat?.monthlyBudget || 0;
+  const currentMonthSpending = currentBudget?.actualSpent || 0;
 
   const spentPercentage =
     budgetAmount > 0 ? (currentMonthSpending / budgetAmount) * 100 : 0;
 
   const remaining = budgetAmount - currentMonthSpending;
-
-  // Convert category breakdown structure
-  const categoryBreakdown = Object.entries(budget?.breakdown || {}).map(
-    ([key, value]) => ({
-      name: key[0].toUpperCase() + key.slice(1),
-      amount: value,
-    })
-  );
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -255,66 +244,7 @@ const Budget = () => {
           </Card>
         )}
 
-        {/* Category Breakdown */}
-        {budgetAmount > 0 && (
-          <Card variant="elevated" className="rounded-2xl">
-            <Button
-              variant="ghost"
-              className="flex-row justify-between"
-              onPress={() => setShowBreakdown(!showBreakdown)}
-            >
-              <View className="flex-row items-center">
-                <PieChart size={20} color={colors.text} />
-                <Text className="ml-2 font-semibold" style={{ color: colors.text }}>
-                  Category Breakdown
-                </Text>
-              </View>
 
-              <Text style={{ color: colors.textSecondary }}>
-                {showBreakdown ? "▼" : "▶"}
-              </Text>
-            </Button>
-
-            {showBreakdown && (
-              <View style={{ marginTop: 12 }}>
-                {categoryBreakdown.map((cat, i) => {
-                  const percentage = (cat.amount / budgetAmount) * 100;
-
-                  return (
-                    <View key={i} style={{ marginBottom: 14 }}>
-                      <View className="flex-row justify-between mb-1">
-                        <Text style={{ color: colors.text }}>{cat.name}</Text>
-                        <Text style={{ color: colors.text, fontWeight: "600" }}>
-                          ₹{cat.amount.toFixed(0)}
-                        </Text>
-                      </View>
-
-                      <View
-                        style={{
-                          height: 6,
-                          backgroundColor: colors.backgroundTertiary,
-                          borderRadius: 999,
-                        }}
-                      >
-                        <View
-                          style={{
-                            height: "100%",
-                            width: `${percentage}%`,
-                            backgroundColor: colors.primary,
-                          }}
-                        />
-                      </View>
-
-                      <Text style={{ marginTop: 4, fontSize: 12, color: colors.textSecondary }}>
-                        {percentage.toFixed(1)}%
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </Card>
-        )}
 
         {/* AI Budget Forecast */}
         {forecast && (
@@ -450,7 +380,7 @@ const Budget = () => {
                     {forecast.predictions?.length > 0 && (
                       <View>
                         <Text style={{ color: 'white', fontWeight: '600', marginBottom: 10, fontSize: 14 }}>
-                          📊 Next {forecast.predictions.length} Months Forecast
+                          📊 Next Month Forecast
                         </Text>
                         {forecast.predictions.map((pred, idx) => {
                           const date = new Date(pred.month + '-01');

@@ -2,24 +2,24 @@ import { useRouter } from 'expo-router';
 import { Bell, Camera, CreditCard, FileText, Plus, Receipt } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    RefreshControl,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import LoadingSkeleton from '../../components/LoadingSkeleton';
 import PaymentModal from '../../components/PaymentModal';
 import {
-  BillCard,
-  Button,
-  Card,
-  EmptyState,
-  PageHeader,
-  SectionTitle
+    BillCard,
+    Button,
+    Card,
+    EmptyState,
+    PageHeader,
+    SectionTitle
 } from '../../components/ui';
 import { fetchExpenseHistory, fetchUserDues, invalidateCache, recordBulkPayment } from '../../store/slices/expenseUnifiedSlice';
 
@@ -118,16 +118,17 @@ const Bills = () => {
       setSelectedExpenses([]);
       setSelectionMode(false);
       
-      // Reload data with a small delay to ensure backend has updated
-      setTimeout(async () => {
-        await loadData();
-        
-        Alert.alert(
-          'Payment Successful!',
-          `Successfully recorded payment for ${payments.length} ${payments.length === 1 ? 'item' : 'items'}`,
-          [{ text: 'OK' }]
-        );
-      }, 300);
+      // Force immediate refetch with force=true
+      if (currentFlat?._id) {
+        await dispatch(fetchUserDues({ flatId: currentFlat._id, force: true })).unwrap();
+      }
+      await loadData();
+      
+      Alert.alert(
+        'Payment Successful!',
+        `Successfully recorded payment for ${payments.length} ${payments.length === 1 ? 'item' : 'items'}`,
+        [{ text: 'OK' }]
+      );
       
     } catch (error) {
       throw error; // Let PaymentModal handle the error display
@@ -196,7 +197,7 @@ const Bills = () => {
               onPress={handleNotificationPress}
               className="w-10 h-10 items-center justify-center bg-surface-100 rounded-full"
             >
-              <Bell size={20} color="#374151" />
+              <Bell size={20} color="#6B7785" />
             </TouchableOpacity>
           }
         />
@@ -379,9 +380,9 @@ const Bills = () => {
                           {/* Selection Checkbox Overlay */}
                           {canSelect && (
                             <View className="absolute top-4 left-4 z-10">
-                              <View className={`w-6 h-6 rounded-md border-2 items-center justify-center ${
-                                isSelected ? 'bg-primary-500 border-primary-500' : 'border-gray-300 bg-white'
-                              }`}>
+                            <View className={`w-6 h-6 rounded-md border-2 items-center justify-center ${
+                              isSelected ? 'bg-primary-500 border-primary-500' : 'border-border bg-surface-0'
+                            }`}>
                                 {isSelected && (
                                   <Text className="text-white text-xs font-bold">✓</Text>
                                 )}
@@ -451,11 +452,7 @@ const Bills = () => {
                     title={`Split Expenses (${allSplitExpenses.length})`}
                     className="px-2"
                   />
-                  <Card className="bg-info-50 border border-info-200 mb-md">
-                    <Text className="text-sm text-info-600">
-                      ℹ️ Split expenses are tracked for records only. No payment dues.
-                    </Text>
-                  </Card>
+    
                   
                   <View className="gap-3">
                     {allSplitExpenses.map((expense, index) => {

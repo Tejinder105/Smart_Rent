@@ -3,17 +3,6 @@ import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { useSelector } from 'react-redux';
 import { getColors } from '../../constants/colors';
 
-/**
- * FlatmateSelector Component
- * List selector for flatmates with avatars and amounts
- * 
- * @param {Array} flatmates - Array of {id, name, avatar, amount (optional)}
- * @param {Array} selectedIds - Array of selected flatmate IDs
- * @param {function} onToggle - Toggle handler (flatmateId) => void
- * @param {boolean} multiSelect - Allow multiple selection (default: true)
- * @param {boolean} showAmounts - Show amount column (default: false)
- * @param {object} style - Additional styles
- */
 const FlatmateSelector = ({
   flatmates = [],
   selectedIds = [],
@@ -31,7 +20,6 @@ const FlatmateSelector = ({
     if (multiSelect) {
       onToggle(id);
     } else {
-      // Single select - only keep the new selection
       onToggle(id);
     }
   };

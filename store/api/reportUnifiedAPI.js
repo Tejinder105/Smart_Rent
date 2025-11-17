@@ -1,9 +1,3 @@
-/**
- * Unified Report API Client (V2 - Optimized)
- * Single source for all report-related API calls
- * Replaces multiple scattered API calls with consolidated endpoints
- */
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 import * as FileSystem from 'expo-file-system';
@@ -17,10 +11,9 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 20000, // 20s for report generation
+  timeout: 20000, 
 });
 
-// Request interceptor to attach token
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -38,7 +31,6 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -55,12 +47,6 @@ api.interceptors.response.use(
 );
 
 const reportUnifiedAPI = {
-  /**
-   * Get complete financial report (replaces 3 separate calls)
-   * @param {string} flatId - Flat ID
-   * @param {string} month - Month in YYYY-MM format (optional)
-   * @returns {Promise<Object>} Complete report with all data
-   */
   getCompleteReport: async (flatId, month = null) => {
     try {
       console.log('📊 Fetching complete report for flat:', flatId, 'month:', month || 'current');
@@ -79,11 +65,6 @@ const reportUnifiedAPI = {
     }
   },
 
-  /**
-   * Get optimized dashboard summary (minimal payload)
-   * @param {string} flatId - Flat ID
-   * @returns {Promise<Object>} Essential dashboard data only
-   */
   getDashboardSummary: async (flatId) => {
     try {
       console.log('📊 Fetching dashboard summary for flat:', flatId);
@@ -96,12 +77,6 @@ const reportUnifiedAPI = {
     }
   },
 
-  /**
-   * Get ML-powered budget forecast (optimized single query)
-   * @param {string} flatId - Flat ID
-   * @param {number} months - Number of months to forecast
-   * @returns {Promise<Object>} Forecast predictions
-   */
   getForecast: async (flatId, months = 3) => {
     try {
       console.log('🔮 Fetching budget forecast for flat:', flatId);
@@ -118,12 +93,6 @@ const reportUnifiedAPI = {
     }
   },
 
-  /**
-   * Get category-wise spending analysis
-   * @param {string} flatId - Flat ID
-   * @param {Object} dateRange - Optional {startDate, endDate}
-   * @returns {Promise<Object>} Category breakdown
-   */
   getCategoryAnalysis: async (flatId, dateRange = {}) => {
     try {
       console.log('📂 Fetching category analysis for flat:', flatId);
@@ -136,12 +105,6 @@ const reportUnifiedAPI = {
     }
   },
 
-  /**
-   * Export report as CSV with native sharing
-   * @param {string} flatId - Flat ID
-   * @param {string} month - Month in YYYY-MM format
-   * @returns {Promise<Object>} Export result
-   */
   exportReportCSV: async (flatId, month) => {
     try {
       console.log('💾 Exporting report for flat:', flatId, 'month:', month);
@@ -151,15 +114,12 @@ const reportUnifiedAPI = {
         responseType: 'text'
       });
       
-      // Create filename
       const fileName = `SmartRent_Report_${month || new Date().toISOString().slice(0, 7)}.csv`;
       const fileUri = `${FileSystem.documentDirectory}${fileName}`;
       
-      // Write CSV to file
       await FileSystem.writeAsStringAsync(fileUri, res.data);
       console.log('✅ Report exported to:', fileUri);
       
-      // Share the file
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'text/csv',
@@ -176,12 +136,6 @@ const reportUnifiedAPI = {
     }
   },
 
-  /**
-   * Export report as JSON
-   * @param {string} flatId - Flat ID
-   * @param {string} month - Month in YYYY-MM format
-   * @returns {Promise<Object>} Complete report data
-   */
   exportReportJSON: async (flatId, month) => {
     try {
       console.log('💾 Exporting JSON report for flat:', flatId, 'month:', month);
@@ -196,12 +150,6 @@ const reportUnifiedAPI = {
     }
   },
 
-  /**
-   * Invalidate report cache (call after bulk operations)
-   * @param {string} flatId - Flat ID
-   * @param {string} month - Optional month in YYYY-MM format
-   * @returns {Promise<Object>} Success confirmation
-   */
   invalidateCache: async (flatId, month = null) => {
     try {
       console.log('🗑️ Invalidating cache for flat:', flatId, 'month:', month || 'all');

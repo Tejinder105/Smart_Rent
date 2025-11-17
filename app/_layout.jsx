@@ -33,14 +33,14 @@ function AppLayout() {
     return () => {
       if (notificationListener.current) {
         try {
-          Notifications.removeNotificationSubscription(notificationListener.current);
+          notificationListener.current.remove();
         } catch (error) {
           console.log('Error removing notification listener:', error);
         }
       }
       if (responseListener.current) {
         try {
-          Notifications.removeNotificationSubscription(responseListener.current);
+          responseListener.current.remove();
         } catch (error) {
           console.log('Error removing response listener:', error);
         }

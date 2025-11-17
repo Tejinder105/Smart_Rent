@@ -3,19 +3,6 @@ import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSelector } from 'react-redux';
 import { getColors } from '../../constants/colors';
 
-/**
- * Modal Component
- * Base modal container with consistent styling
- * 
- * @param {boolean} visible - Modal visibility state
- * @param {function} onClose - Close handler
- * @param {string} title - Modal title
- * @param {React.ReactNode} children - Modal content
- * @param {React.ReactNode} footer - Optional footer content (buttons)
- * @param {string} size - 'sm' | 'md' | 'lg' | 'full'
- * @param {boolean} showCloseButton - Show X button in header
- * @param {object} style - Additional styles
- */
 const BaseModal = ({
   visible,
   onClose,

@@ -3,16 +3,6 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { useSelector } from 'react-redux';
 import { getColors } from '../../constants/colors';
 
-/**
- * CategorySelector Component
- * Grid selector for categories with icons
- * 
- * @param {Array} categories - Array of {id, name, icon, color}
- * @param {string} selectedId - Currently selected category ID
- * @param {function} onSelect - Selection handler (categoryId) => void
- * @param {number} columns - Number of columns in grid (default: 3)
- * @param {object} style - Additional styles
- */
 const CategorySelector = ({
   categories = [],
   selectedId,

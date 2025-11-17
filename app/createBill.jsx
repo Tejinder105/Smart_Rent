@@ -4,7 +4,8 @@ import {
   ChevronLeft,
   FileText,
   Sparkles,
-  Users
+  Users,
+  Scan
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -153,14 +154,11 @@ const CreateBill = () => {
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center flex-1">
                 <View className="w-12 h-12 bg-purple-200 rounded-full items-center justify-center">
-                  <Sparkles size={24} color="#8b5cf6" />
+                  <Scan size={24} color="#8b5cf6" />
                 </View>
                 <View className="flex-1 ml-3">
                   <Text className="text-purple-900 font-bold text-base">
-                    🤖 Try AI Bill Scanner
-                  </Text>
-                  <Text className="text-purple-700 text-sm">
-                    Scan bill image with OCR
+                     Try Bill Scanner
                   </Text>
                 </View>
               </View>

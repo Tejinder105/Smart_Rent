@@ -82,24 +82,20 @@ export const createUnifiedExpense = createAsyncThunk(
 
 /**
  * Record bulk payment for multiple expenses
- * With optimistic update support
+ * SIMPLIFIED - Just make the API call
  */
 export const recordBulkPayment = createAsyncThunk(
   'expenseUnified/recordBulkPayment',
-  async (paymentData, { rejectWithValue, getState, dispatch }) => {
+  async (paymentData, { rejectWithValue }) => {
     const startTime = Date.now();
     try {
-      console.log('🔄 [Redux V2] Recording bulk payment...');
+      console.log('🔄 [recordBulkPayment] Processing payment...');
       const response = await expenseAPI.recordBulkPayment(paymentData);
       const duration = Date.now() - startTime;
-      console.log(`✅ [Redux V2] Bulk payment recorded successfully (${duration}ms)`);
-      
-      // Invalidate cache after payment
-      dispatch(invalidateCache());
-      
+      console.log(`✅ [recordBulkPayment] Success (${duration}ms)`);
       return response.data;
     } catch (error) {
-      console.error('❌ [Redux V2] Failed to record bulk payment:', error);
+      console.error('❌ [recordBulkPayment] Failed:', error);
       return rejectWithValue(error.message || 'Failed to record bulk payment');
     }
   }
@@ -107,32 +103,28 @@ export const recordBulkPayment = createAsyncThunk(
 
 /**
  * Fetch user dues (bills + expenses combined)
- * With smart cache validation
- * 
- * Note: This endpoint may not be available on all backend versions.
- * If it fails, the app will continue with other data sources.
+ * SIMPLIFIED - No caching, always fetch fresh data
  */
 export const fetchUserDues = createAsyncThunk(
   'expenseUnified/fetchUserDues',
-  async (flatId, { rejectWithValue, getState }) => {
+  async (flatId, { rejectWithValue }) => {
     const startTime = Date.now();
-    const state = getState();
-    const { cache } = state.expenseUnified;
+    // Handle both string flatId or object with flatId
+    const id = typeof flatId === 'string' ? flatId : flatId?.flatId;
     
-    // Check cache validity
-    if (isCacheValid(cache.lastFetch, cache.ttl) && !cache.isStale) {
-      console.log('📦 [Redux V2] Using cached user dues');
-      return null; // Return null to skip update
-    }
+    console.log('🔄 [fetchUserDues] Fetching from API for flatId:', id);
     
     try {
-      console.log('🔄 [Redux V2] Fetching user dues...');
-      const response = await expenseAPI.getUserDues(flatId);
+      const response = await expenseAPI.getUserDues(id);
       const duration = Date.now() - startTime;
-      console.log(`✅ [Redux V2] User dues fetched successfully (${duration}ms)`);
+      console.log(`✅ [fetchUserDues] Success (${duration}ms):`, {
+        billDues: response.data?.billDues?.length || 0,
+        expenseDues: response.data?.expenseDues?.length || 0,
+        totalDue: response.data?.totalDue
+      });
       return response.data;
     } catch (error) {
-      console.error('❌ [Redux V2] Failed to fetch user dues:', error);
+      console.error('❌ [fetchUserDues] Failed:', error);
       return rejectWithValue(error.message || 'Failed to fetch user dues');
     }
   }
@@ -385,23 +377,15 @@ const expenseUnifiedSlice = createSlice({
       .addCase(recordBulkPayment.pending, (state) => {
         state.paymentLoading = true;
         state.paymentError = null;
-        console.log('⏳ [Redux V2] Processing bulk payment...');
-        
-        // Optimistic update: mark selected items as processing
-        // This provides instant UI feedback
       })
       .addCase(recordBulkPayment.fulfilled, (state, action) => {
         state.paymentLoading = false;
-        // Invalidate cache to trigger data refresh
-        state.cache.isStale = true;
-        state.cache.lastFetch = null;
-        console.log('✅ [Redux V2] Bulk payment processed, cache invalidated');
+        console.log('✅ [Reducer] Payment successful');
       })
       .addCase(recordBulkPayment.rejected, (state, action) => {
         state.paymentLoading = false;
         state.paymentError = action.payload;
-        // Rollback optimistic update if needed
-        console.error('❌ [Redux V2] Bulk payment failed:', action.payload);
+        console.error('❌ [Reducer] Payment failed:', action.payload);
       })
 
       // ========================================================================
@@ -410,24 +394,30 @@ const expenseUnifiedSlice = createSlice({
       .addCase(fetchUserDues.pending, (state) => {
         state.loading = true;
         state.error = null;
-        console.log('⏳ [Redux V2] Loading user dues...');
       })
       .addCase(fetchUserDues.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload) {
-          state.financials.userDues = action.payload;
-          // Update cache metadata
-          state.cache.lastFetch = Date.now();
-          state.cache.isStale = false;
-          console.log('✅ [Redux V2] User dues loaded and cached');
-        } else {
-          console.log('📦 [Redux V2] Used cached user dues');
-        }
+        state.financials.userDues = action.payload;
+        console.log('✅ [Reducer] User dues updated in state');
+        console.log('📊 [Reducer] Dues structure:', {
+          billDuesCount: action.payload?.billDues?.length || 0,
+          expenseDuesCount: action.payload?.expenseDues?.length || 0,
+          firstBillDue: action.payload?.billDues?.[0] ? {
+            title: action.payload.billDues[0].title,
+            userAmount: action.payload.billDues[0].userAmount,
+            amount: action.payload.billDues[0].amount
+          } : 'none',
+          firstExpenseDue: action.payload?.expenseDues?.[0] ? {
+            title: action.payload.expenseDues[0].title,
+            userAmount: action.payload.expenseDues[0].userAmount,
+            amount: action.payload.expenseDues[0].amount
+          } : 'none'
+        });
       })
       .addCase(fetchUserDues.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        console.error('❌ [Redux V2] User dues failed:', action.payload);
+        console.error('❌ [Reducer] User dues failed:', action.payload);
       })
 
       // ========================================================================

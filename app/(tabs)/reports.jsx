@@ -13,7 +13,7 @@ import {
     SectionTitle,
     StatCard
 } from '../../components/ui';
-import { exportReport, fetchBudgetForecast, fetchCategorySpending, fetchMonthlyReport } from "../../store/slices/reportSlice";
+import { exportReport, fetchMonthlyReport } from "../../store/slices/reportSlice";
 
 const reports = () => {
   const router = useRouter();
@@ -22,7 +22,7 @@ const reports = () => {
   const { userData } = useSelector((state) => state.auth);
   const { currentFlat } = useSelector((state) => state.flat);
   // Backend report data
-  const { monthlyReport, budgetForecast, categorySpending, loading: reportLoading } = useSelector((state) => state.report);
+  const { monthlyReport, forecast, categorySpending, loading: reportLoading } = useSelector((state) => state.report);
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
@@ -39,11 +39,8 @@ const reports = () => {
     const year = selectedDate.getFullYear();
     const monthString = `${year}-${String(month).padStart(2, '0')}`;
     
-    await Promise.all([
-      dispatch(fetchMonthlyReport({ flatId: currentFlat._id, params: { month: monthString } })),
-      dispatch(fetchBudgetForecast({ flatId: currentFlat._id, params: { months: 3 } })),
-      dispatch(fetchCategorySpending({ flatId: currentFlat._id, params: {} }))
-    ]);
+    // Only fetch monthly report - forecast removed from reports screen
+    await dispatch(fetchMonthlyReport({ flatId: currentFlat._id, params: { month: monthString } }));
   };
 
   const onRefresh = async () => {
@@ -71,7 +68,7 @@ const reports = () => {
       return;
     }
     
-    if (!monthlyReport || monthlyReport.totalSpent === 0) {
+    if (!monthlyReport || !monthlyReport.summary || monthlyReport.summary.totalSpent === 0) {
       Alert.alert('Error', 'No data to export');
       return;
     }
@@ -104,13 +101,13 @@ const reports = () => {
                          selectedDate.getFullYear() === new Date().getFullYear();
 
   return (
-    <View className="flex-1 bg-gray-100">
+    <View className="flex-1 bg-background">
       {/* Header */}
       <PageHeader
         title="Monthly Reports"
         subtitle="Track your spending patterns"
         rightAction={
-          monthlyReport && monthlyReport.totalSpent > 0 ? (
+          monthlyReport && monthlyReport.summary && monthlyReport.summary.totalSpent > 0 ? (
             <Button
               variant="ghost"
               size="sm"
@@ -129,7 +126,7 @@ const reports = () => {
         }
       >
         {/* ML Forecast Banner */}
-        {budgetForecast && (
+        {forecast && (
           <Card
             variant="interactive"
             onPress={() => setShowForecast(!showForecast)}
@@ -155,8 +152,8 @@ const reports = () => {
         )}
 
         {/* ML Forecast Details */}
-        {showForecast && budgetForecast && (
-          <Card variant="elevated" className="mx-4 mt-3 bg-white border-purple-200">
+        {showForecast && forecast && (
+          <Card variant="elevated" className="mx-4 mt-3 bg-surface-0 border-purple-200">
             <SectionTitle title="🤖 Machine Learning Insights" variant="compact" className="mb-3" />
             
             {/* Next Month Forecast */}
@@ -165,54 +162,46 @@ const reports = () => {
                 Next Month Forecast
               </Text>
               <Text className="text-3xl font-bold text-purple-700">
-                ₹{budgetForecast.forecast?.toFixed(0) || '0'}
+                ₹{forecast.nextMonthPrediction?.predictedAmount?.toFixed(0) || '0'}
               </Text>
               <Text className="text-purple-600 text-sm mt-1">
-                Based on {budgetForecast.monthsAnalyzed || 3} months of data
+                Based on {forecast._metadata?.monthsAnalyzed || 3} months of data
               </Text>
             </View>
 
             {/* Confidence Level */}
-            {budgetForecast.confidence && (
+            {forecast.confidence && (
               <View className="mb-3">
                 <View className="flex-row justify-between mb-1">
-                  <Text className="text-gray-700 text-sm">Confidence Level</Text>
-                  <Text className="text-gray-900 font-bold text-sm">
-                    {budgetForecast.confidence}%
+                  <Text className="text-text-primary text-sm">Confidence Level</Text>
+                  <Text className="text-text-primary font-bold text-sm capitalize">
+                    {forecast.confidence}
                   </Text>
-                </View>
-                <View className="bg-gray-200 rounded-full h-2">
-                  <View 
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full"
-                    style={{ width: `${budgetForecast.confidence}%` }}
-                  />
                 </View>
               </View>
             )}
 
             {/* Trend Analysis */}
-            {budgetForecast.trend && (
+            {forecast.trend && (
               <View className="flex-row items-center bg-blue-50 rounded-xl p-3">
-                {budgetForecast.trend === 'increasing' && <TrendingUp size={18} color="#ef4444" />}
-                {budgetForecast.trend === 'decreasing' && <TrendingDown size={18} color="#00C471" />}
-                {budgetForecast.trend === 'stable' && <BarChart3 size={18} color="#3b82f6" />}
-                <Text className="text-gray-700 text-sm ml-2 flex-1">
-                  Spending trend: <Text className="font-bold">{budgetForecast.trend}</Text>
+                {forecast.trend === 'increasing' && <TrendingUp size={18} color="#ef4444" />}
+                {forecast.trend === 'decreasing' && <TrendingDown size={18} color="#00C471" />}
+                {forecast.trend === 'stable' && <BarChart3 size={18} color="#3b82f6" />}
+                <Text className="text-text-primary text-sm ml-2 flex-1">
+                  Spending trend: <Text className="font-bold capitalize">{forecast.trend}</Text>
                 </Text>
               </View>
             )}
 
             {/* Recommendations */}
-            {budgetForecast.recommendations && budgetForecast.recommendations.length > 0 && (
+            {forecast.explanation && (
               <View className="mt-3 bg-amber-50 rounded-xl p-3">
                 <Text className="text-amber-900 font-semibold text-sm mb-2">
-                  💡 Recommendations
+                  💡 Insights
                 </Text>
-                {budgetForecast.recommendations.map((rec, idx) => (
-                  <Text key={idx} className="text-amber-800 text-sm mb-1">
-                    • {rec}
-                  </Text>
-                ))}
+                <Text className="text-amber-800 text-sm">
+                  {forecast.explanation}
+                </Text>
               </View>
             )}
           </Card>
@@ -220,7 +209,7 @@ const reports = () => {
 
         {/* Month Selector */}
         <View className="mx-4 mt-4 mb-4">
-          <Card className="bg-white">
+          <Card className="bg-surface-0">
             <View className="flex-row items-center justify-between">
               <Button
                 variant="ghost"
@@ -232,9 +221,9 @@ const reports = () => {
               <View className="flex-1 items-center">
                 <View className="flex-row items-center">
                   <Calendar size={18} color="#6b7280" />
-                  <Text className="text-sm text-gray-500 ml-2">Report for</Text>
+                  <Text className="text-sm text-text-secondary ml-2">Report for</Text>
                 </View>
-                <Text className="text-xl font-bold text-gray-900 mt-1">{monthName}</Text>
+                <Text className="text-xl font-bold text-text-primary mt-1">{monthName}</Text>
                 {isCurrentMonth && (
                   <View className="bg-success-100 px-2 py-1 rounded-full mt-1">
                     <Text className="text-xs text-success-700 font-semibold">Current Month</Text>
@@ -257,9 +246,9 @@ const reports = () => {
         {reportLoading && !refreshing ? (
           <Card className="mx-4 items-center py-8">
             <ActivityIndicator size="large" color="#00C471" />
-            <Text className="mt-2 text-gray-600">Loading report data...</Text>
+            <Text className="mt-2 text-text-secondary">Loading report data...</Text>
           </Card>
-        ) : !monthlyReport || monthlyReport.totalSpent === 0 ? (
+        ) : !monthlyReport || !monthlyReport.summary || monthlyReport.summary.totalSpent === 0 ? (
           <View className="mx-4">
             <EmptyState
               icon={<BarChart3 size={48} color="#3b82f6" />}
@@ -274,19 +263,19 @@ const reports = () => {
               <View className="flex-row gap-3">
                 <StatCard
                   label="Total Spent"
-                  value={`₹${monthlyReport.totalSpent?.toFixed(0) || 0}`}
+                  value={`₹${monthlyReport.summary?.totalSpent?.toFixed(0) || 0}`}
                   variant="default"
                   className="flex-1"
                   subtitle={
-                    monthlyReport.percentChange !== undefined && monthlyReport.percentChange !== 0 ? (
+                    monthlyReport.summary?.percentChange !== undefined && monthlyReport.summary.percentChange !== 0 ? (
                       <View className="flex-row items-center mt-1">
-                        {monthlyReport.percentChange > 0 ? (
+                        {monthlyReport.summary.percentChange > 0 ? (
                           <TrendingUp size={12} color="#ef4444" />
                         ) : (
                           <TrendingDown size={12} color="#00C471" />
                         )}
-                        <Text className={`text-xs ml-1 ${monthlyReport.percentChange > 0 ? 'text-danger-600' : 'text-success-600'}`}>
-                          {Math.abs(monthlyReport.percentChange).toFixed(1)}%
+                        <Text className={`text-xs ml-1 ${monthlyReport.summary.percentChange > 0 ? 'text-danger-600' : 'text-success-600'}`}>
+                          {Math.abs(monthlyReport.summary.percentChange).toFixed(1)}%
                         </Text>
                       </View>
                     ) : null
@@ -295,7 +284,7 @@ const reports = () => {
 
                 <StatCard
                   label="Transactions"
-                  value={monthlyReport.transactionCount || 0}
+                  value={monthlyReport.summary?.transactionCount || 0}
                   variant="default"
                   subtitle="This month"
                   className="flex-1"
@@ -304,15 +293,15 @@ const reports = () => {
             </View>
 
             {/* Category Breakdown */}
-            {categorySpending && categorySpending.length > 0 && (
+            {monthlyReport?.categoryBreakdown && monthlyReport.categoryBreakdown.length > 0 && (
               <View className="mx-4 mb-4">
-                <Card variant="elevated" className="bg-white">
+                <Card variant="elevated" className="bg-surface-0">
                   <SectionTitle title="Spending by Category" variant="compact" className="mb-4" />
                   
                   {/* Pie Chart */}
                   <View className="items-center mb-6">
                     <PieChart
-                      data={categorySpending.map((cat, idx) => ({
+                      data={monthlyReport.categoryBreakdown.map((cat, idx) => ({
                         label: cat.category,
                         value: cat.totalAmount || 0,
                         color: getCategoryColor(idx),
@@ -323,7 +312,7 @@ const reports = () => {
                   </View>
 
                   {/* Category List with Progress Bars */}
-                  {categorySpending.map((category, index) => (
+                  {monthlyReport.categoryBreakdown.map((category, index) => (
                     <View key={index} className="mb-4">
                       <View className="flex-row items-center justify-between mb-2">
                         <View className="flex-row items-center flex-1">
@@ -331,11 +320,11 @@ const reports = () => {
                             className="w-3 h-3 rounded-full mr-2"
                             style={{ backgroundColor: getCategoryColor(index) }}
                           />
-                          <Text className="text-gray-700 font-medium capitalize">{category.category}</Text>
+                          <Text className="text-text-primary font-medium capitalize">{category.category}</Text>
                         </View>
-                        <Text className="text-gray-900 font-semibold">₹{category.totalAmount?.toFixed(0) || 0}</Text>
+                        <Text className="text-text-primary font-semibold">₹{category.totalAmount?.toFixed(0) || 0}</Text>
                       </View>
-                      <View className="bg-gray-200 rounded-full h-3">
+                      <View className="bg-surface-200 rounded-full h-3">
                         <View 
                           className="h-3 rounded-full"
                           style={{ 
@@ -344,29 +333,9 @@ const reports = () => {
                           }}
                         />
                       </View>
-                      <Text className="text-xs text-gray-500 mt-1">
+                      <Text className="text-xs text-text-secondary mt-1">
                         {category.percentage?.toFixed(1) || 0}% • {category.count || 0} transactions
                       </Text>
-                    </View>
-                  ))}
-                </Card>
-              </View>
-            )}
-
-            {/* Transaction List */}
-            {monthlyReport.transactions && monthlyReport.transactions.length > 0 && (
-              <View className="mx-4 mb-6">
-                <Card variant="elevated" className="bg-white">
-                  <SectionTitle title="Recent Transactions" variant="compact" className="mb-4" />
-                  {monthlyReport.transactions.slice(0, 10).map((txn, idx) => (
-                    <View key={idx} className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                      <View className="flex-1">
-                        <Text className="text-gray-900 font-medium">{txn.description || 'Transaction'}</Text>
-                        <Text className="text-gray-500 text-xs mt-1">
-                          {new Date(txn.date).toLocaleDateString('en-IN')} • {txn.type}
-                        </Text>
-                      </View>
-                      <Text className="text-gray-900 font-bold">₹{txn.amount?.toFixed(0) || 0}</Text>
                     </View>
                   ))}
                 </Card>

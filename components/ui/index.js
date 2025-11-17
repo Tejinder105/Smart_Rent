@@ -1,5 +1,3 @@
-// UI Components Library
-// Unified components following the design system
 
 export { default as BillCard } from './BillCard';
 export { default as Button } from './Button';

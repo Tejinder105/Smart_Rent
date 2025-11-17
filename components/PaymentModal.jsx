@@ -82,7 +82,7 @@ const PaymentModal = ({ visible, onClose, selectedExpenses = [], onPaymentComple
               onPress={onClose}
               className="w-8 h-8 items-center justify-center bg-surface-100 rounded-full"
             >
-              <X size={20} color={theme.colors.textSecondary} />
+              <X size={20} color="#6B7785" />
             </TouchableOpacity>
           </View>
 

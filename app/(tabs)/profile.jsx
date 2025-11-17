@@ -81,16 +81,16 @@ const profile = () => {
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-background">
       {/* Header */}
       <PageHeader
         title="Profile"
         rightAction={
           <TouchableOpacity 
             onPress={handleNotificationPress}
-            className="w-10 h-10 items-center justify-center bg-gray-100 rounded-full"
+            className="w-10 h-10 items-center justify-center bg-surface-100 rounded-full"
           >
-            <Bell size={20} color="#374151" />
+            <Bell size={20} color="#6B7785" />
           </TouchableOpacity>
         }
       />
@@ -116,33 +116,33 @@ const profile = () => {
                 </TouchableOpacity>
               </View>
               
-              <Text className="text-xl font-bold text-gray-900 mt-4">
+              <Text className="text-xl font-bold text-text-primary mt-4">
                 {userData?.userName || userData?.fullName || 'User'}
               </Text>
-              <Text className="text-gray-500 text-sm">
+              <Text className="text-text-secondary text-sm">
                 {userData?.email || 'No email provided'}
               </Text>
             </View>
 
             {/* Stats Row */}
-            <View className="flex-row justify-around py-4 border-t border-gray-100">
+            <View className="flex-row justify-around py-4 border-t border-border">
               <View className="items-center">
-                <Text className="text-2xl font-bold text-gray-900">
+                <Text className="text-2xl font-bold text-text-primary">
                   {currentFlat?.stats?.totalMembers || 0}
                 </Text>
-                <Text className="text-gray-500 text-xs">Flatmates</Text>
+                <Text className="text-text-secondary text-xs">Flatmates</Text>
               </View>
               <View className="items-center">
-                <Text className="text-2xl font-bold text-gray-900">
+                <Text className="text-2xl font-bold text-text-primary">
                   {payments?.filter(p => p.status === 'paid').length || 0}
                 </Text>
-                <Text className="text-gray-500 text-xs">Payments</Text>
+                <Text className="text-text-secondary text-xs">Payments</Text>
               </View>
               <View className="items-center">
-                <Text className="text-2xl font-bold text-gray-900">
+                <Text className="text-2xl font-bold text-text-primary">
                   ₹{((stats?.participant?.paidAmount || 0) / 1000).toFixed(1)}k
                 </Text>
-                <Text className="text-gray-500 text-xs">Total Spent</Text>
+                <Text className="text-text-secondary text-xs">Total Spent</Text>
               </View>
             </View>
           </Card>
@@ -153,25 +153,25 @@ const profile = () => {
           <SectionTitle title="Personal Information" />
           <Card>
             
-            <View className="flex-row items-center py-4 border-b border-gray-100">
+            <View className="flex-row items-center py-4 border-b border-border">
               <View className="w-10 h-10 bg-primary-100 rounded-full items-center justify-center mr-4">
                 <User size={20} color="#3b82f6" />
               </View>
               <View className="flex-1">
-                <Text className="text-sm text-gray-500">Full Name</Text>
-                <Text className="text-gray-900 font-medium">
+                <Text className="text-sm text-text-secondary">Full Name</Text>
+                <Text className="text-text-primary font-medium">
                   {userData?.userName || userData?.fullName || 'Not provided'}
                 </Text>
               </View>
             </View>
 
-            <View className="flex-row items-center py-4 border-b border-gray-100">
+            <View className="flex-row items-center py-4 border-b border-border">
               <View className="w-10 h-10 bg-success-100 rounded-full items-center justify-center mr-4">
                 <Mail size={20} color="#16a34a" />
               </View>
               <View className="flex-1">
-                <Text className="text-sm text-gray-500">Email Address</Text>
-                <Text className="text-gray-900 font-medium">
+                <Text className="text-sm text-text-secondary">Email Address</Text>
+                <Text className="text-text-primary font-medium">
                   {userData?.email || 'Not provided'}
                 </Text>
               </View>
@@ -183,8 +183,8 @@ const profile = () => {
                   <Calendar size={20} color="#8b5cf6" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm text-gray-500">Member Since</Text>
-                  <Text className="text-gray-900 font-medium">
+                  <Text className="text-sm text-text-secondary">Member Since</Text>
+                  <Text className="text-text-primary font-medium">
                     {new Date(userData.createdAt).toLocaleDateString('en-US', { 
                       year: 'numeric', 
                       month: 'long', 
@@ -204,23 +204,23 @@ const profile = () => {
             
             <TouchableOpacity 
               onPress={handleSettings}
-              className="flex-row items-center py-4 border-b border-gray-100"
+              className="flex-row items-center py-4 border-b border-border"
             >
-              <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center mr-4">
+              <View className="w-10 h-10 bg-surface-100 rounded-full items-center justify-center mr-4">
                 <Settings size={20} color="#6b7280" />
               </View>
-              <Text className="flex-1 text-gray-900 font-medium">Settings</Text>
+              <Text className="flex-1 text-text-primary font-medium">Settings</Text>
               <ChevronRight size={20} color="#9ca3af" />
             </TouchableOpacity>
 
             <TouchableOpacity 
               onPress={handlePrivacy}
-              className="flex-row items-center py-4 border-b border-gray-100"
+              className="flex-row items-center py-4 border-b border-border"
             >
               <View className="w-10 h-10 bg-warning-100 rounded-full items-center justify-center mr-4">
                 <Shield size={20} color="#ea580c" />
               </View>
-              <Text className="flex-1 text-gray-900 font-medium">Privacy & Security</Text>
+              <Text className="flex-1 text-text-primary font-medium">Privacy & Security</Text>
               <ChevronRight size={20} color="#9ca3af" />
             </TouchableOpacity>
 
@@ -231,7 +231,7 @@ const profile = () => {
               <View className="w-10 h-10 bg-yellow-100 rounded-full items-center justify-center mr-4">
                 <HelpCircle size={20} color="#ca8a04" />
               </View>
-              <Text className="flex-1 text-gray-900 font-medium">Help & Support</Text>
+              <Text className="flex-1 text-text-primary font-medium">Help & Support</Text>
               <ChevronRight size={20} color="#9ca3af" />
             </TouchableOpacity>
           </Card>

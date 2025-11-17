@@ -1,42 +1,42 @@
 import { useRouter } from 'expo-router';
 import {
-  ArrowLeft,
-  Check,
-  DivideCircle,
-  IndianRupee,
-  Receipt,
-  ShoppingCart,
-  Sofa,
-  Sparkles,
-  Tags,
-  Users,
-  Wifi,
-  Wrench,
-  Zap,
+    ArrowLeft,
+    Check,
+    DivideCircle,
+    IndianRupee,
+    Receipt,
+    ShoppingCart,
+    Sofa,
+    Sparkles,
+    Tags,
+    Users,
+    Wifi,
+    Wrench,
+    Zap,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
 import {
-  Button,
-  Card,
-  CategorySelector,
-  FlatmateSelector,
-  Input,
-  PageHeader,
-  SectionTitle
+    Button,
+    Card,
+    CategorySelector,
+    FlatmateSelector,
+    Input,
+    PageHeader,
+    SectionTitle
 } from '../components/ui';
 
 import { fetchAvailableFlatmates } from '../store/slices/expenseSlice';
-import { createUnifiedExpense, invalidateCache } from '../store/slices/expenseUnifiedSlice';
+import { createUnifiedExpense, fetchUserDues, invalidateCache } from '../store/slices/expenseUnifiedSlice';
 
 const splitExpense = () => {
   const router = useRouter();
@@ -111,6 +111,7 @@ const splitExpense = () => {
           text: 'Create',
           onPress: async () => {
             try {
+              console.log('🔵 [SplitExpense] Starting expense creation...');
               const expenseData = {
                 type: 'split',
                 title: description,
@@ -126,9 +127,22 @@ const splitExpense = () => {
                 }))
               };
 
+              console.log('🔵 [SplitExpense] Expense data:', JSON.stringify(expenseData, null, 2));
+              
               await dispatch(createUnifiedExpense(expenseData)).unwrap();
+              console.log('✅ [SplitExpense] Expense created successfully');
+              
+              // Invalidate cache BEFORE refetching
               dispatch(invalidateCache());
-
+              console.log('🔵 [SplitExpense] Cache invalidated');
+              
+              // Force refetch user dues immediately to show new expense in PayDues
+              if (currentFlat?._id) {
+                console.log('🔵 [SplitExpense] Fetching user dues for flatId:', currentFlat._id);
+                await dispatch(fetchUserDues({ flatId: currentFlat._id, force: true }));
+                console.log('✅ [SplitExpense] User dues refetched successfully');
+              }
+              
               Alert.alert(
                 'Expense Created!',
                 `Each person owes ₹${splitAmount}`,

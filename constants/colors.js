@@ -1,16 +1,12 @@
-// colors.js
-// Central color palette (light + dark). Keep this file as the single source of truth for colors.
-// Based on SmartRent design system - Updated with new color specifications
-
-const BRAND_PRIMARY = "#0057FF"; // Strong Blue - Primary Brand
-const BRAND_ACCENT = "#00C471";  // Vibrant Green - Accent/CTA
-const BRAND_PRIMARY_LIGHT = "#4D94FF"; // Lighter Blue for dark mode
+const BRAND_PRIMARY = "#0057FF"; 
+const BRAND_ACCENT = "#00C471"; 
+const BRAND_PRIMARY_LIGHT = "#4D94FF"; 
 
 export const colors = {
   light: {
     // Brand Colors
-    primary: BRAND_PRIMARY,        // #0057FF - Strong Blue
-    primaryLight: "#4D8AFF",       // Lighter variation
+    primary: BRAND_PRIMARY,        
+    primaryLight: "#4D8AFF",       
     primaryDark: "#0043CC",        // Darker variation
     primaryBg: "#E6EFFF",          // Very subtle blue tint for backgrounds
     

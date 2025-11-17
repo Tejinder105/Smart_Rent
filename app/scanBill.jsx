@@ -2,33 +2,32 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import {
-    Camera,
-    CheckCircle,
-    ChevronLeft,
-    ImageIcon,
-    Sparkles,
-    Upload,
-    Wifi,
-    WifiOff,
-    XCircle
+  Camera,
+  CheckCircle,
+  ChevronLeft,
+  ImageIcon,
+  Upload,
+  Wifi,
+  WifiOff,
+  XCircle
 } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-    Button,
-    Card,
-    CategorySelector,
-    Input,
-    PageHeader
+  Button,
+  Card,
+  CategorySelector,
+  Input,
+  PageHeader
 } from '../components/ui';
 import { scanBill } from '../store/slices/billSlice';
 import { createUnifiedExpense, invalidateCache } from '../store/slices/expenseUnifiedSlice';
@@ -326,7 +325,7 @@ const ScanBill = () => {
             <View className="px-4 pb-32">
               <View className="bg-black/70 rounded-2xl p-4 mb-6">
                 <Text className="text-white text-center font-semibold mb-2">
-                  📸 Position Bill in Frame
+                  Position Bill in Frame
                 </Text>
                 <Text className="text-white/80 text-center text-sm">
                   Make sure all text is clearly visible, then tap the button below
@@ -356,8 +355,8 @@ const ScanBill = () => {
     <View className="flex-1 bg-gray-50">
       {/* Header */}
       <PageHeader
-        title="🤖 Scan Bill"
-        subtitle="AI-powered bill scanning with OCR"
+        title="Scan Bill"
+        subtitle="Bill scanning with OCR"
         leftAction={
           <Button
             variant="ghost"
@@ -370,51 +369,17 @@ const ScanBill = () => {
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Connection Status Banner */}
-        {connectionChecked && (
-          <Card variant="outline" className={`mx-4 mt-4 ${isBackendReachable ? 'bg-success-50 border-success-200' : 'bg-danger-50 border-danger-200'} flex-row items-center`}>
-            {isBackendReachable ? (
-              <>
-                <Wifi size={18} color="#00C471" />
-                <Text className="text-success-800 text-sm font-medium ml-2 flex-1">
-                  ✅ Connected to backend server
-                </Text>
-              </>
-            ) : (
-              <>
-                <WifiOff size={18} color="#ef4444" />
-                <View className="flex-1 ml-2">
-                  <Text className="text-danger-800 text-sm font-semibold">
-                    ⚠️ Backend server unreachable
-                  </Text>
-                  <Text className="text-danger-600 text-xs mt-1">
-                    OCR scanning requires backend connection
-                  </Text>
-                </View>
-              </>
-            )}
-          </Card>
-        )}
 
         {/* Scan Options */}
         {!capturedImage && (
           <View className="mx-4 mt-6 mb-4">
-            <Card className="bg-gradient-to-r from-purple-100 to-pink-100 mb-4">
-              <View className="flex-row items-center mb-3">
-                <Sparkles size={24} color="#8b5cf6" />
-                <Text className="text-purple-900 font-bold text-lg ml-2">
-                  AI Bill Scanner
-                </Text>
-              </View>
-              <Text className="text-purple-700 text-sm">
-                Automatically extract bill details using advanced OCR technology. Just snap a photo or upload an image!
-              </Text>
-            </Card>
 
             <View className="flex-row gap-3">
               <Card
                 variant="interactive"
                 onPress={handleTakePhoto}
-                className="flex-1 bg-primary-500 items-center"
+                style={{ backgroundColor: '#3b82f6' }}
+                className="flex-1 items-center"
               >
                 <View className="w-16 h-16 bg-white rounded-full items-center justify-center mb-3">
                   <Camera size={32} color="#3b82f6" />
@@ -430,10 +395,11 @@ const ScanBill = () => {
               <Card
                 variant="interactive"
                 onPress={handlePickImage}
-                className="flex-1 bg-success-500 items-center"
+                style={{ backgroundColor: '#10b981' }}
+                className="flex-1 items-center"
               >
                 <View className="w-16 h-16 bg-white rounded-full items-center justify-center mb-3">
-                  <ImageIcon size={32} color="#00C471" />
+                  <ImageIcon size={32} color="#10b981" />
                 </View>
                 <Text className="text-white font-bold text-base">
                   Upload Image

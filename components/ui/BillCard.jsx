@@ -4,19 +4,6 @@ import { getColors } from '../../constants/colors';
 import { borderRadius, layout, spacing, typography } from '../../constants/theme';
 import Card from './Card';
 
-/**
- * BillCard Component
- * Displays a bill item with consistent styling
- * 
- * @param {string} title - Bill title
- * @param {string} category - Bill category
- * @param {string} amount - Bill amount (formatted)
- * @param {string} dueDate - Due date (formatted)
- * @param {string} status - 'pending' | 'paid' | 'overdue' | 'partial'
- * @param {React.ReactNode} icon - Category icon
- * @param {function} onPress - Press handler
- * @param {object} style - Additional styles
- */
 const BillCard = ({
   title,
   category,

@@ -4,22 +4,24 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  Button,
-  Card,
-  EmptyState,
-  PageHeader,
-  SectionTitle,
-  StatCard
+    Button,
+    Card,
+    EmptyState,
+    PageHeader,
+    SectionTitle,
+    StatCard
 } from "../../components/ui";
 import { useTheme } from "../../store/hooks/useTheme";
 import { getIconColor } from "../../utils/themeUtils";
 // V2 Unified API - Single call for all dashboard data ⭐
 import {
-  fetchUserDues,
-  invalidateCache,
-  selectFinancials,
-  selectIsCacheValid,
-  selectLoading as selectUnifiedLoading
+    fetchCurrentBudget,
+    fetchUserDues,
+    invalidateCache,
+    selectCurrentBudget,
+    selectFinancials,
+    selectIsCacheValid,
+    selectLoading as selectUnifiedLoading
 } from "../../store/slices/expenseUnifiedSlice";
 import { fetchUserFlat } from "../../store/slices/flatSlice";
 
@@ -39,6 +41,7 @@ export default function Index() {
 
   // V2 Unified API - Get all financial data from single source ⭐
   const financials = useSelector(selectFinancials);
+  const currentBudget = useSelector(selectCurrentBudget);
   const unifiedLoading = useSelector(selectUnifiedLoading);
   const isCacheValid = useSelector(selectIsCacheValid);
 
@@ -64,7 +67,10 @@ export default function Index() {
 
   const loadFinancialData = async () => {
     if (currentFlat?._id) {
-      await dispatch(fetchUserDues(currentFlat._id));
+      await Promise.all([
+        dispatch(fetchUserDues(currentFlat._id)),
+        dispatch(fetchCurrentBudget({ flatId: currentFlat._id }))
+      ]);
     }
   };
 
@@ -113,6 +119,25 @@ export default function Index() {
   const totalBillDue = userDues?.totalBillDue || 0;
   const totalExpenseDue = userDues?.totalExpenseDue || 0;
   const totalDue = userDues?.totalDue || 0;
+  
+  // Debug logging
+  console.log('📊 [Home] User Dues Data:', {
+    billDuesCount: billDues.length,
+    expenseDuesCount: expenseDues.length,
+    totalBillDue,
+    totalExpenseDue,
+    totalDue,
+    currentFlat: currentFlat?._id,
+    userData: user?._id
+  });
+  
+  // Log individual dues with structure
+  if (billDues.length > 0) {
+    console.log('📋 [Home] Bill Dues Sample:', JSON.stringify(billDues[0], null, 2));
+  }
+  if (expenseDues.length > 0) {
+    console.log('📋 [Home] Expense Dues Sample:', JSON.stringify(expenseDues[0], null, 2));
+  }
   
   // Combine all pending dues
   const pendingExpenses = [...billDues, ...expenseDues];
@@ -296,11 +321,13 @@ export default function Index() {
 
               {/* Monthly Budget Card */}
               {currentFlat && monthlyBudget > 0 && (() => {
-                // Use data from V2 unified API ⭐
-                const spent = totalDue;
-                const budget = monthlyBudget;
+                // Use actual spending data from budget snapshot ⭐
+                const spent = currentBudget?.actualSpent || 0;
+                const budget = currentBudget?.budgetAmount || monthlyBudget;
                 const percentage = budget > 0 ? (spent / budget) * 100 : 0;
                 const remaining = budget - spent;
+                
+                console.log('💰 Budget display:', { spent, budget, percentage, currentBudget });
                 
                 return (
                   <Card
@@ -403,21 +430,23 @@ export default function Index() {
                   />
                   
                   <View style={styles.pendingList}>
-                    {pendingExpenses.slice(0, 3).map((due, index) => {
+                    {pendingExpenses.slice(0, 5).map((due, index) => {
                       // Handle both bill dues and expense dues
                       const isBillDue = !!due.billId;
                       const id = isBillDue ? due.billId?._id : due.expenseId;
                       const title = isBillDue ? due.billId?.title : due.title;
                       const category = isBillDue ? due.billId?.category : due.category;
-                      const amountOwed = due.amount;
+                      const amountOwed = due.userAmount || 0;
                       const dueDate = isBillDue ? due.billId?.dueDate : null;
+                      
+                      console.log('💳 [Home] Pending item:', { title, amountOwed, userAmount: due.userAmount, amount: due.amount });
                       
                       return (
                         <Card
                           key={`${id}-${index}`}
                           variant="interactive"
                           onPress={() => {
-                            if (id) router.push(`/expenseDetails?id=${id}`);
+                            router.push('/payDues');
                           }}
                           style={styles.pendingCard}
                         >
@@ -447,7 +476,7 @@ export default function Index() {
                     })}
                   </View>
 
-                  {pendingExpenses.length > 3 && (
+                  {pendingExpenses.length > 5 && (
                     <TouchableOpacity 
                       onPress={handlePayDues}
                       style={styles.viewAllButton}

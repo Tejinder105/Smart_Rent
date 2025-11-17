@@ -4,18 +4,6 @@ import { getColors } from '../../constants/colors';
 import { borderRadius, layout, spacing, typography } from '../../constants/theme';
 import Button from './Button';
 
-/**
- * EmptyState Component
- * Consistent empty state UI with icon, message, and optional action
- * 
- * @param {React.ReactNode} icon - Icon component (e.g., Lucide icon)
- * @param {string} title - Main title
- * @param {string} message - Descriptive message
- * @param {string} actionLabel - Action button label
- * @param {function} onAction - Action button press handler
- * @param {string} actionVariant - Button variant ('primary' | 'secondary' | 'outline')
- * @param {object} style - Additional styles
- */
 const EmptyState = ({
   icon,
   title,

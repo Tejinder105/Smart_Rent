@@ -46,7 +46,15 @@ const Button = ({
       text: colors.primary,
       borderWidth: 0,
     },
+    success: {
+      bg: colors.success,
+      text: colors.textInverse,
+      borderWidth: 0,
+    },
   };
+
+  // Get current variant style with fallback to primary
+  const currentVariant = variantStyles[variant] || variantStyles.primary;
 
   const sizeStyles = {
     sm: { 
@@ -71,9 +79,9 @@ const Button = ({
       className={className}
       style={[
         {
-          backgroundColor: variantStyles[variant].bg,
-          borderWidth: variantStyles[variant].borderWidth,
-          borderColor: variantStyles[variant].borderColor,
+          backgroundColor: currentVariant.bg,
+          borderWidth: currentVariant.borderWidth,
+          borderColor: currentVariant.borderColor,
           paddingVertical: sizeStyles[size].paddingVertical,
           paddingHorizontal: sizeStyles[size].paddingHorizontal,
           borderRadius: borderRadius.lg,
@@ -91,8 +99,8 @@ const Button = ({
     >
       {loading ? (
         <>
-          <ActivityIndicator color={variantStyles[variant].text} />
-          <Text style={{ marginLeft: spacing.sm, color: variantStyles[variant].text }}>
+          <ActivityIndicator color={currentVariant.text} />
+          <Text style={{ marginLeft: spacing.sm, color: currentVariant.text }}>
             Loading...
           </Text>
         </>
@@ -101,7 +109,7 @@ const Button = ({
           {leftIcon}
           <Text
             style={{
-              color: variantStyles[variant].text,
+              color: currentVariant.text,
               fontSize: sizeStyles[size].fontSize,
               fontWeight: typography.fontWeight.semibold,
             }}

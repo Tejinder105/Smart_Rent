@@ -52,39 +52,64 @@ const history = () => {
   console.log('📜 History - Current user:', currentUserId);
   
   // Debug: Log all expenses with their structure
-  allExpenses.forEach((exp, idx) => {
-    console.log(`📜 Expense ${idx + 1}:`, {
-      title: exp.title,
-      type: exp.type,
-      hasSplits: !!exp.splits,
-      hasParticipants: !!exp.participants,
-      participants: exp.participants?.map(p => ({
+  if (allExpenses.length > 0) {
+    const sampleExp = allExpenses[0];
+    console.log('📜 Sample expense structure:', {
+      title: sampleExp.title,
+      type: sampleExp.type,
+      hasSplits: !!sampleExp.splits,
+      hasParticipants: !!sampleExp.participants,
+      splits: sampleExp.splits?.map(s => ({
+        userId: s.userId?._id || s.userId,
+        amount: s.amount,
+        status: s.status,
+        paidAt: s.paidAt
+      })),
+      participants: sampleExp.participants?.map(p => ({
         userId: p.userId?._id || p.userId,
+        amount: p.amount,
         isPaid: p.isPaid,
-        paidAt: p.paidAt,
-        amount: p.amount
+        paidAt: p.paidAt
       }))
     });
-  });
+  }
   
   // Get bills where user has paid their split
   const paidBills = allExpenses
     .filter(exp => exp.splits !== undefined) // Is a bill
     .filter(bill => {
-      const userSplit = bill.splits?.find(split => 
-        split.userId?._id === currentUserId || split.userId === currentUserId
-      );
-      return userSplit && userSplit.status === 'paid';
+      const userSplit = bill.splits?.find(split => {
+        const splitUserId = split.userId?._id?.toString() || split.userId?.toString();
+        return splitUserId === currentUserId;
+      });
+      const isPaid = userSplit && userSplit.status === 'paid';
+      if (isPaid) {
+        console.log('📜 Found paid bill:', {
+          title: bill.title,
+          split: userSplit,
+          splitAmount: userSplit?.amount,
+          splitStatus: userSplit?.status,
+          paidAt: userSplit?.paidAt
+        });
+      }
+      return isPaid;
     })
     .map(bill => {
-      const userSplit = bill.splits?.find(split => 
-        split.userId?._id === currentUserId || split.userId === currentUserId
-      );
+      const userSplit = bill.splits?.find(split => {
+        const splitUserId = split.userId?._id?.toString() || split.userId?.toString();
+        return splitUserId === currentUserId;
+      });
+      const amount = userSplit?.amount || 0;
+      console.log('📜 Mapping bill to transaction:', {
+        billTitle: bill.title,
+        amount: amount,
+        userSplit: userSplit
+      });
       return {
         _id: bill._id,
         description: bill.title,
         type: bill.category || 'bill',
-        amount: userSplit?.amount || 0,
+        amount: amount,
         date: userSplit?.paidAt || bill.createdAt,
         category: bill.category,
         paymentMethod: 'cash'
@@ -95,20 +120,38 @@ const history = () => {
   const paidSplitExpenses = allExpenses
     .filter(exp => exp.participants !== undefined && exp.splits === undefined) // Is a split expense
     .filter(expense => {
-      const userParticipant = expense.participants?.find(p => 
-        p.userId?._id === currentUserId || p.userId === currentUserId
-      );
-      return userParticipant && userParticipant.isPaid;
+      const userParticipant = expense.participants?.find(p => {
+        const participantUserId = p.userId?._id?.toString() || p.userId?.toString();
+        return participantUserId === currentUserId;
+      });
+      const isPaid = userParticipant && userParticipant.isPaid;
+      if (isPaid) {
+        console.log('📜 Found paid expense:', {
+          title: expense.title,
+          participant: userParticipant,
+          participantAmount: userParticipant?.amount,
+          isPaid: userParticipant?.isPaid,
+          paidAt: userParticipant?.paidAt
+        });
+      }
+      return isPaid;
     })
     .map(expense => {
-      const userParticipant = expense.participants?.find(p => 
-        p.userId?._id === currentUserId || p.userId === currentUserId
-      );
+      const userParticipant = expense.participants?.find(p => {
+        const participantUserId = p.userId?._id?.toString() || p.userId?.toString();
+        return participantUserId === currentUserId;
+      });
+      const amount = userParticipant?.amount || 0;
+      console.log('📜 Mapping expense to transaction:', {
+        expenseTitle: expense.title,
+        amount: amount,
+        userParticipant: userParticipant
+      });
       return {
         _id: expense._id,
         description: expense.title,
         type: 'split_expense',
-        amount: userParticipant?.amount || 0,
+        amount: amount,
         date: userParticipant?.paidAt || expense.createdAt,
         category: expense.category,
         paymentMethod: 'cash'
@@ -122,10 +165,16 @@ const history = () => {
   console.log('📜 History - Paid bills:', paidBills.length);
   console.log('📜 History - Paid split expenses:', paidSplitExpenses.length);
   console.log('📜 History - Total transactions:', transactions.length);
-
-  console.log('📜 History - Paid bills:', paidBills.length);
-  console.log('📜 History - Paid split expenses:', paidSplitExpenses.length);
-  console.log('📜 History - Total transactions:', transactions.length);
+  
+  // Debug: Log sample transactions with amounts
+  if (transactions.length > 0) {
+    console.log('📜 Sample transaction:', {
+      description: transactions[0].description,
+      amount: transactions[0].amount,
+      type: transactions[0].type,
+      date: transactions[0].date
+    });
+  }
   
   // Calculate summary
   const summary = {
@@ -161,7 +210,7 @@ const history = () => {
 
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-background">
       {/* Header */}
       <PageHeader
         title="Payment History"
@@ -211,7 +260,7 @@ const history = () => {
           {loading && !refreshing ? (
             <Card className="mx-4 items-center py-8">
               <ActivityIndicator size="large" color="#16a34a" />
-              <Text className="mt-2 text-gray-600">Loading history...</Text>
+              <Text className="mt-2 text-text-secondary">Loading history...</Text>
             </Card>
           ) : !filteredTransactions || filteredTransactions.length === 0 ? (
             <View className="mx-4">
@@ -241,10 +290,10 @@ const history = () => {
                           <CheckCircle size={24} color="#16a34a" />
                         </View>
                         <View className="flex-1">
-                          <Text className="text-base font-bold text-gray-900">
+                          <Text className="text-base font-bold text-text-primary">
                             {txn.description || 'Payment'}
                           </Text>
-                          <Text className="text-sm text-gray-500 mt-1 capitalize">
+                          <Text className="text-sm text-text-secondary mt-1 capitalize">
                             {txn.type?.replace('_', ' ') || 'Transaction'}
                           </Text>
                         </View>
@@ -254,7 +303,7 @@ const history = () => {
                         <Text className="text-lg font-bold text-success-600">
                           ₹{txn.amount?.toFixed(0) || 0}
                         </Text>
-                        <Text className="text-xs text-gray-500 mt-1">
+                        <Text className="text-xs text-text-secondary mt-1">
                           {new Date(txn.date).toLocaleDateString('en-IN', {
                             month: 'short',
                             day: 'numeric'
@@ -264,8 +313,8 @@ const history = () => {
                     </View>
 
                     {txn.category && (
-                      <View className="bg-gray-50 rounded-lg p-2 mt-2">
-                        <Text className="text-xs text-gray-600 capitalize">
+                      <View className="bg-surface-100 rounded-lg p-2 mt-2">
+                        <Text className="text-xs text-text-secondary capitalize">
                           Category: {txn.category}
                         </Text>
                       </View>

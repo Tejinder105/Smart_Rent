@@ -5,20 +5,6 @@ import { getColors } from '../../constants/colors';
 import Button from './Button';
 import BaseModal from './Modal';
 
-/**
- * ConfirmModal Component
- * Confirmation dialog with consistent styling
- * 
- * @param {boolean} visible - Modal visibility state
- * @param {function} onClose - Close/cancel handler
- * @param {function} onConfirm - Confirm handler
- * @param {string} title - Modal title
- * @param {string} message - Confirmation message
- * @param {string} confirmLabel - Confirm button label (default: "Confirm")
- * @param {string} cancelLabel - Cancel button label (default: "Cancel")
- * @param {string} variant - 'danger' | 'warning' | 'info' (default: 'danger')
- * @param {boolean} loading - Show loading state on confirm button
- */
 const ConfirmModal = ({
   visible,
   onClose,
@@ -33,14 +19,14 @@ const ConfirmModal = ({
   const { isDark } = useSelector((state) => state.theme);
   const colors = getColors(isDark);
 
-  // Icon color based on variant
+
   const iconColors = {
     danger: colors.error,
     warning: colors.warning,
     info: colors.info,
   };
 
-  // Button variant based on dialog variant
+
   const buttonVariants = {
     danger: 'danger',
     warning: 'primary',

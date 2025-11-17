@@ -1,7 +1,9 @@
-import { createV1ApiClient, handleApiError } from './apiClient';
+import { createV1ApiClient, createV2ApiClient, handleApiError } from './apiClient';
 
 // Use v1 for backward compatibility with expense endpoints
 const api = createV1ApiClient();
+// Use v2 for new unified endpoints
+const v2Api = createV2ApiClient();
 
 const expenseAPI = {
   getUserExpenses: async (params = {}) => {
@@ -94,11 +96,13 @@ const expenseAPI = {
     }
   },
 
-  // ========== NEW UNIFIED ENDPOINTS ==========
+  // ========== NEW UNIFIED ENDPOINTS (V2) ==========
   
   createUnifiedExpense: async (expenseData) => {
     try {
-      const res = await api.post("/expenses/unified", expenseData);
+      console.log('🔵 [API] Creating unified expense via V2...');
+      const res = await v2Api.post("/expenses", expenseData);
+      console.log('✅ [API] Expense created successfully');
       return res.data;
     } catch (error) {
       handleApiError(error, 'Create unified expense');
@@ -107,7 +111,9 @@ const expenseAPI = {
 
   recordBulkPayment: async (paymentData) => {
     try {
-      const res = await api.post("/expenses/pay", paymentData);
+      console.log('🔵 [API] Recording bulk payment via V2...');
+      const res = await v2Api.post("/expenses/pay", paymentData);
+      console.log('✅ [API] Payment recorded successfully');
       return res.data;
     } catch (error) {
       handleApiError(error, 'Record bulk payment');
@@ -116,7 +122,16 @@ const expenseAPI = {
 
   getUserDues: async (flatId) => {
     try {
-      const res = await api.get("/expenses/dues", { params: { flatId } });
+      console.log('🔵 [API] Fetching user dues via V2 for flatId:', flatId);
+      const res = await v2Api.get("/expenses/dues", { params: { flatId } });
+      console.log('✅ [API] User dues fetched:', res.data);
+      console.log('📊 [API] Response data structure:', {
+        success: res.data.success,
+        hasData: !!res.data.data,
+        billDues: res.data.data?.billDues?.length || 0,
+        expenseDues: res.data.data?.expenseDues?.length || 0,
+        firstExpense: res.data.data?.expenseDues?.[0] || null
+      });
       return res.data;
     } catch (error) {
       handleApiError(error, 'Get user dues');
@@ -125,7 +140,9 @@ const expenseAPI = {
 
   getExpenseHistory: async (params = {}) => {
     try {
-      const res = await api.get("/expenses/history", { params });
+      console.log('🔵 [API] Fetching expense history via V2...');
+      const res = await v2Api.get("/expenses/flat/" + params.flatId, { params });
+      console.log('✅ [API] History fetched successfully');
       return res.data;
     } catch (error) {
       handleApiError(error, 'Get expense history');

@@ -20,7 +20,7 @@ import {
     EmptyState,
     PageHeader
 } from '../components/ui';
-import { fetchUserDues, invalidateCache, recordBulkPayment, selectFinancials } from '../store/slices/expenseUnifiedSlice';
+import { fetchUserDues, recordBulkPayment, selectFinancials } from '../store/slices/expenseUnifiedSlice';
 import { fetchUserFlat } from '../store/slices/flatSlice';
 
 const payDues = () => {
@@ -39,26 +39,43 @@ const payDues = () => {
   const userDues = [...billDues, ...expenseDues];
   
   // Debug logging
-  console.log('💰 PayDues - billDues:', billDues.length);
-  console.log('💰 PayDues - expenseDues:', expenseDues.length);
+  console.log('💰 PayDues - RAW financials.userDues:', JSON.stringify(financials.userDues, null, 2));
+  console.log('💰 PayDues - billDues:', billDues.length, billDues);
+  console.log('💰 PayDues - expenseDues:', expenseDues.length, expenseDues);
   console.log('💰 PayDues - userDues total:', userDues.length);
   console.log('💰 PayDues - totalDuesAmount:', totalDuesAmount);
-  console.log('💰 PayDues - financials.userDues:', financials.userDues);
+  
+  // Log individual amounts
+  if (billDues.length > 0) {
+    console.log('💰 First bill due:', {
+      title: billDues[0].title,
+      userAmount: billDues[0].userAmount,
+      totalAmount: billDues[0].totalAmount
+    });
+  }
+  if (expenseDues.length > 0) {
+    console.log('💰 First expense due:', {
+      title: expenseDues[0].title,
+      userAmount: expenseDues[0].userAmount,
+      totalAmount: expenseDues[0].totalAmount
+    });
+  }
   
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
+  const [itemsToShow, setItemsToShow] = useState(10);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = () => {
+  const loadData = async () => {
     if (currentFlat?._id) {
-      dispatch(fetchUserDues(currentFlat._id));
+      await dispatch(fetchUserDues(currentFlat._id));
     }
-    dispatch(fetchUserFlat());
+    await dispatch(fetchUserFlat());
   };
 
   const onRefresh = async () => {
@@ -72,24 +89,17 @@ const payDues = () => {
   };
 
   const handlePayDue = async (due) => {
-    console.log('💰💰💰 handlePayDue called!', due);
-    Alert.alert('Debug', `Clicked on: ${due.title || 'Unknown'}`);
+    console.log('💰 [PayDues] Paying due:', due);
     
-    // Determine if it's a bill or expense
-    const isBillDue = !!due.billId;
-    const id = isBillDue ? due.billId?._id : due.expenseId;
-    const title = isBillDue ? due.billId?.title : due.title;
-    const amount = due.amount;
+    // Backend now returns billId for bills and expenseId for expenses
+    const expenseId = due.billId || due.expenseId || due._id;
+    const expenseType = due.billId ? 'bill' : 'expense';
     
-    console.log('💰 PayDues - Paying due:', { isBillDue, id, title, amount, due });
-    
-    // Set selected expense for payment modal
     setSelectedExpense({
-      _id: id,
-      title: title,
-      userAmount: amount,
-      isBill: isBillDue,
-      expenseType: isBillDue ? 'bill' : 'expense'
+      _id: expenseId,
+      title: due.title,
+      userAmount: due.userAmount || 0,
+      expenseType: expenseType
     });
     setShowPaymentModal(true);
   };
@@ -98,35 +108,41 @@ const payDues = () => {
     try {
       const payments = paymentData.expenses.map(expense => ({
         expenseId: expense._id,
-        expenseType: expense.expenseType,
+        expenseType: expense.expenseType === 'bill' ? 'bill' : 'expense',
         amount: expense.userAmount,
         paymentMethod: paymentData.paymentMethod,
         transactionReference: paymentData.transactionReference,
         note: paymentData.note
       }));
 
-      console.log('💰 PayDues - Recording payment:', payments);
+      console.log('💳 [PayDues] Recording payment:', payments);
 
+      // Record payment
       await dispatch(recordBulkPayment({ payments })).unwrap();
+      console.log('✅ [PayDues] Payment successful');
       
-      // Clear cache and close modal
-      dispatch(invalidateCache());
+      // Refetch dues - no cache, no delays
+      if (currentFlat?._id) {
+        await dispatch(fetchUserDues(currentFlat._id));
+        console.log('✅ [PayDues] Dues refetched');
+      }
+      
+      // Refresh flat data
+      await dispatch(fetchUserFlat());
+      
+      // Close modal and show success
       setShowPaymentModal(false);
       setSelectedExpense(null);
-      
-      // Reload data with a small delay
-      setTimeout(async () => {
-        await loadData();
-        
-        Alert.alert(
-          'Payment Successful!',
-          `Successfully recorded payment for ${payments.length} ${payments.length === 1 ? 'item' : 'items'}`,
-          [{ text: 'OK' }]
-        );
-      }, 300);
+
+      Alert.alert(
+        'Payment Successful!',
+        `Successfully recorded payment for ${payments.length} ${payments.length === 1 ? 'item' : 'items'}`,
+        [{ text: 'OK' }]
+      );
       
     } catch (error) {
-      throw error; // Let PaymentModal handle the error display
+      console.error('❌ [PayDues] Payment error:', error);
+      Alert.alert('Payment Failed', error.message || 'Please try again');
     }
   };
 
@@ -158,7 +174,7 @@ const payDues = () => {
             <View className="bg-primary-500 rounded-2xl p-5 shadow-sm">
               <Text className="text-white text-sm font-medium mb-1">Total Dues</Text>
               <Text className="text-white text-4xl font-bold">
-                ₹{totalDuesAmount.toFixed(2)}
+                ₹{(totalDuesAmount || 0).toFixed(2)}
               </Text>
               <Text className="text-white opacity-80 text-sm mt-2">
                 {userDues.length} pending payment{userDues.length !== 1 ? 's' : ''}
@@ -183,14 +199,11 @@ const payDues = () => {
               message="You have no pending payments"
             />
           ) : (
-            userDues.map((due, index) => {
-              // Handle both bill dues and expense dues
-              const isBillDue = !!due.billId;
-              const id = isBillDue ? due.billId?._id : due.expenseId;
-              const title = isBillDue ? due.billId?.title : due.title;
-              const category = isBillDue ? due.billId?.category : due.category;
-              const dueDate = isBillDue ? due.billId?.dueDate : null;
-              const amount = due.amount;
+            <>
+              {userDues.slice(0, itemsToShow).map((due, index) => {
+              // Backend now returns billId for bills, expenseId for expenses
+              const isBill = !!due.billId;
+              const id = due.billId || due.expenseId || due._id;
               
               return (
                 <Card
@@ -202,29 +215,46 @@ const payDues = () => {
                   <View className="flex-row items-center">
                     <View className="w-10 h-10 bg-primary-100 rounded-full items-center justify-center mr-3">
                       <Text className="text-primary-600 font-bold text-base">
-                        {category?.charAt(0).toUpperCase() || (isBillDue ? 'B' : 'E')}
+                        {due.category?.charAt(0).toUpperCase() || (isBill ? 'B' : 'E')}
                       </Text>
                     </View>
 
                     <View className="flex-1">
-                      <Text className="text-base font-semibold text-gray-900">{title || (isBillDue ? 'Bill' : 'Expense')}</Text>
+                      <Text className="text-base font-semibold text-gray-900">
+                        {due.title || (isBill ? 'Bill' : 'Expense')}
+                      </Text>
                       <View className="flex-row items-center mt-0.5">
                         <Text className="text-xs text-gray-500">
-                          {dueDate ? new Date(dueDate).toLocaleDateString() : 'No due date'}
+                          {due.dueDate ? new Date(due.dueDate).toLocaleDateString() : 'No due date'}
                         </Text>
                         <Text className="text-xs text-gray-400 ml-2">
-                          • {isBillDue ? 'Bill' : 'Split Expense'}
+                          • {isBill ? 'Bill' : 'Split Expense'}
                         </Text>
                       </View>
                     </View>
 
                     <View className="items-end">
-                      <Text className="text-lg font-bold text-gray-900">₹{amount.toFixed(2)}</Text>
+                      <Text className="text-lg font-bold text-gray-900">
+                        ₹{(due.userAmount || 0).toFixed(2)}
+                      </Text>
                     </View>
                   </View>
                 </Card>
               );
-            })
+            })}
+            
+            {/* Load More Button */}
+            {userDues.length > itemsToShow && (
+              <Button
+                variant="secondary"
+                size="lg"
+                onPress={() => setItemsToShow(prev => prev + 10)}
+                className="mt-4"
+              >
+                Load More ({userDues.length - itemsToShow} remaining)
+              </Button>
+            )}
+            </>
           )}
         </View>
       </ScrollView>
