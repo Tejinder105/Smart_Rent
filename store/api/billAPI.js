@@ -111,7 +111,7 @@ const billAPI = {
       }
 
       // Use FileSystem.uploadAsync for proper multipart upload
-      const uploadUrl = 'http://192.168.1.11:8000/api/bills/scan';
+      const uploadUrl = 'http://192.168.225.31:8000/api/bills/scan';
       
       console.log('📤 Step 3: Preparing upload...');
       console.log('📤 Upload URL:', uploadUrl);

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const LOCAL_URL = 'http://192.168.1.11:8000';
+const LOCAL_URL = 'http://192.168.225.31:8000';
 const PROD_URL  = 'https://backend-production-82e5.up.railway.app';
 
 const BASE_URL = __DEV__ ? LOCAL_URL : PROD_URL; 
